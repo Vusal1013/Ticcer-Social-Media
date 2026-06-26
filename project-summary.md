@@ -180,8 +180,8 @@ sosial-media-app/
 
 ### Supabase Baglantisi
 ```
-URL:    https://wibtcbushwojjzegyppl.supabase.co
-Anon:   sb_publishable_pQAY8NGZVX10-5Ps8WiunQ_sn3WlaVE
+URL:    https://<your-project>.supabase.co
+Anon:   <your-anon-key>
 ```
 
 ### Calistirma
