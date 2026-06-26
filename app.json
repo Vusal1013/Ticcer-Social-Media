@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Ticcer",
+    "slug": "ticcer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#0F0F23"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ticcer.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ticcer foto ve video cekmek ucun kameraya ehtiyac duyur",
+        "NSPhotoLibraryUsageDescription": "Ticcer sekil yuklemek ucun galeriyaya ehtiyac duyur"
+      }
+    },
+    "android": {
+      "package": "com.ticcer.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F0F23",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-image-picker",
+      "expo-camera",
+      "expo-notifications",
+      "expo-video"
+    ]
+  }
+}
