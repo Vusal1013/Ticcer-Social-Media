@@ -1,19 +1,51 @@
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Switch } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
 import { fonts } from '../../constants/theme';
+import type { NotificationPreferences } from '../../types';
 
 export default function SettingsScreen({ navigation }: any) {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { colors, mode, toggleTheme } = useTheme();
+  const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
 
-  function handleLogout() {
-    Alert.alert('Çıxış', 'Hesabdan çıxmaq istədiyinizə əminsiniz?', [
-      { text: 'Ləğv et', style: 'cancel' },
-      { text: 'Çıxış', style: 'destructive', onPress: signOut },
-    ]);
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('notification_preferences').select('*').eq('user_id', user.id).single()
+      .then(({ data }) => {
+        if (data) setPrefs(data);
+        else {
+          const defaults = { user_id: user.id, likes: true, comments: true, follows: true, mentions: true, messages: true };
+          supabase.from('notification_preferences').insert(defaults).select().single()
+            .then(({ data }) => { if (data) setPrefs(data); });
+        }
+      });
+  }, [user]);
+
+  async function updatePref(key: keyof NotificationPreferences, value: boolean) {
+    if (!user || !prefs) return;
+    const { data } = await supabase.from('notification_preferences').update({ [key]: value }).eq('user_id', user.id).select().single();
+    if (data) setPrefs(data);
   }
+
+  async function handleLogout() {
+    try {
+      await signOut();
+    } catch (err) {
+      Alert.alert('Xəta', 'Çıxış edilərkən xəta baş verdi');
+    }
+  }
+
+  const notifItems = [
+    { key: 'likes' as keyof NotificationPreferences, icon: '❤️', label: 'Bəyənmələr' },
+    { key: 'comments' as keyof NotificationPreferences, icon: '💬', label: 'Şərhlər' },
+    { key: 'follows' as keyof NotificationPreferences, icon: '👥', label: 'İzləmələr' },
+    { key: 'mentions' as keyof NotificationPreferences, icon: '📢', label: 'Mentionlar' },
+    { key: 'messages' as keyof NotificationPreferences, icon: '✉️', label: 'Mesajlar' },
+  ];
 
   return (
     <LinearGradient colors={[colors.background, colors.surface]} style={styles.container}>
@@ -25,14 +57,33 @@ export default function SettingsScreen({ navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content}>
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Görünüş</Text>
+
         <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={toggleTheme}>
-          <Text style={[styles.rowIcon]}>{mode === 'dark' ? '🌙' : '☀️'}</Text>
+          <Text style={styles.rowIcon}>{mode === 'dark' ? '🌙' : '☀️'}</Text>
           <Text style={[styles.rowText, { color: colors.text }]}>Tema</Text>
           <Text style={[styles.rowValue, { color: colors.textMuted }]}>
             {mode === 'dark' ? 'Qaranlıq' : 'İşıqlı'}
           </Text>
         </TouchableOpacity>
+
+        <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 24 }]}>Bildirişlər</Text>
+
+        {notifItems.map((item) => (
+          <View key={item.key} style={[styles.row, { borderBottomColor: colors.border }]}>
+            <Text style={styles.rowIcon}>{item.icon}</Text>
+            <Text style={[styles.rowText, { color: colors.text }]}>{item.label}</Text>
+            <Switch
+              value={prefs?.[item.key] ?? true}
+              onValueChange={(val) => updatePref(item.key, val)}
+              trackColor={{ false: colors.border, true: colors.primary + '80' }}
+              thumbColor={prefs?.[item.key] ? colors.primary : colors.textMuted}
+            />
+          </View>
+        ))}
+
+        <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 24 }]}>Hesab</Text>
 
         <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('EditProfile')}>
           <Text style={styles.rowIcon}>✏️</Text>
@@ -43,7 +94,7 @@ export default function SettingsScreen({ navigation }: any) {
           <Text style={styles.rowIcon}>🚪</Text>
           <Text style={[styles.rowText, { color: colors.error }]}>Çıxış et</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </LinearGradient>
   );
 }
@@ -57,6 +108,7 @@ const styles = StyleSheet.create({
   backBtn: { fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
   title: { fontSize: fonts.sizes.xl, fontWeight: fonts.weights.bold },
   content: { padding: 16 },
+  sectionTitle: { fontSize: fonts.sizes.xs, fontWeight: fonts.weights.semibold, textTransform: 'uppercase', marginBottom: 4, marginLeft: 4 },
   row: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1,
   },

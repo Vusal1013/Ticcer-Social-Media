@@ -32,6 +32,7 @@ export default function PostDetailScreen({ route, navigation }: any) {
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
   const [liked, setLiked] = useState(initialPost.is_liked ?? false);
   const [likesCount, setLikesCount] = useState(initialPost.likes_count ?? 0);
+  const [saved, setSaved] = useState(initialPost.is_saved ?? false);
   const [showShare, setShowShare] = useState(false);
 
   async function fetchPost() {
@@ -54,6 +55,14 @@ export default function PostDetailScreen({ route, navigation }: any) {
           .eq('post_id', post.id)
           .single();
         setLiked(!!myLike);
+
+        const { data: mySave } = await supabase
+          .from('saved_posts')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('post_id', post.id)
+          .single();
+        setSaved(!!mySave);
       }
     }
   }
@@ -199,6 +208,19 @@ export default function PostDetailScreen({ route, navigation }: any) {
                 <Text style={styles.actionIcon}>💬</Text>
                 <Text style={[styles.actionCountText, { color: colors.textSecondary }]}>{comments.length}</Text>
               </View>
+
+              <TouchableOpacity onPress={() => {
+                if (!user) return;
+                if (saved) {
+                  supabase.from('saved_posts').delete().eq('user_id', user.id).eq('post_id', post.id).then(() => setSaved(false));
+                } else {
+                  supabase.from('saved_posts').insert({ user_id: user.id, post_id: post.id }).then(() => setSaved(true));
+                }
+              }} style={styles.actionBtn}>
+                <Text style={[styles.actionIcon, { color: saved ? '#FFD700' : colors.textSecondary }]}>
+                  {saved ? '🔖' : '🏷️'}
+                </Text>
+              </TouchableOpacity>
 
               <TouchableOpacity onPress={() => setShowShare(true)} style={styles.actionBtn}>
                 <Text style={[styles.actionIcon, { color: colors.textSecondary }]}>📤</Text>

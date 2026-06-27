@@ -43,6 +43,10 @@ export default function LoginScreen({ navigation }: any) {
           <Text style={styles.buttonText}>{loading ? 'Daxil olunur...' : 'Daxil ol'}</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.link}>
+          <Text style={styles.linkText}>Şifrəni unutdun?</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.link}>
           <Text style={styles.linkText}>Hesabın yoxdur? <Text style={styles.linkHighlight}>Qeydiyyat</Text></Text>
         </TouchableOpacity>

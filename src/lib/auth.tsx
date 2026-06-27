@@ -8,6 +8,7 @@ type AuthContextType = AuthState & {
   signIn: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resetPassword: (email: string) => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,15 +63,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('SignOut error:', err);
+    }
+    setUser(null);
+    setProfile(null);
   }
 
   async function refreshProfile() {
     if (user) await fetchProfile(user.id);
   }
 
+  async function resetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'ticcer://reset-password',
+    });
+    return error?.message ?? null;
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, refreshProfile, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

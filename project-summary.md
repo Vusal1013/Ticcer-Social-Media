@@ -14,20 +14,24 @@ sosial-media-app/
 ├── supabase-migration.sql           # Ana SQL migration (cetveller, RLS, storage, trigger)
 ├── supabase-storage-setup.sql       # Storage policy elaveleri (var olan proyektler ucun)
 ├── supabase-channels.sql            # Kanal ayarlari + ban + voice participant
+├── supabase/
+│   └── functions/
+│       └── send-notification/index.ts # OneSignal + Expo push notification Edge Function
 ├── assets/                          # İkon, splash vs.
 └── src/
     ├── lib/
     │   ├── supabase.ts              # Supabase client (URL + anon key)
-    │   ├── auth.tsx                  # AuthContext (signUp, signIn, signOut, user)
+    │   ├── auth.tsx                  # AuthContext (signUp, signIn, signOut, resetPassword, user)
+    │   ├── theme.tsx                 # ThemeContext (dark/light toggle, AsyncStorage)
     │   └── notifications.ts         # Expo push token + lokal bildiris qurulumu
     ├── constants/
     │   ├── theme.ts                 # Renkler, fontlar
     │   └── filters.ts               # Kamera filter + sticker listesi
     ├── navigation/
-    │   ├── AuthNavigator.tsx        # Login/Register stack
-    │   └── AppNavigator.tsx         # Ana tab navigator (7 tab)
+    │   ├── AuthNavigator.tsx        # Login/Register/ForgotPassword stack
+    │   └── AppNavigator.tsx         # Ana tab navigator (5 tab)
     ├── components/
-    │   ├── PostCard.tsx             # Feed post karti (like/comment/repost/share/hashtag/mention)
+    │   ├── PostCard.tsx             # Feed post karti (like/comment/repost/bookmark/share/hashtag/mention)
     │   ├── ReelItem.tsx             # Reels video overlay
     │   ├── StoryPreview.tsx         # Feed'de story halkalari
     │   ├── StoryViewer.tsx          # Story izleme (modal, 5s, progress bar)
@@ -35,18 +39,20 @@ sosial-media-app/
     │   └── FormInput.tsx            # Giris inputu (tekrar istifade)
     └── screens/
         ├── auth/
-        │   ├── LoginScreen.tsx
-        │   └── RegisterScreen.tsx
+        │   ├── LoginScreen.tsx      # Forgot password linki elave edildi
+        │   ├── RegisterScreen.tsx
+        │   └── ForgotPasswordScreen.tsx # Email ile sifre sifirlama
         ├── feed/
-        │   ├── FeedScreen.tsx       # Realtime post akisi (FlatList + pull refresh)
+        │   ├── FeedScreen.tsx       # Realtime post akisi + bildiriş zəngi + suggested users
         │   ├── CreatePostScreen.tsx # Post yarat (text + image + hashtag/mention parse)
-        │   └── PostDetailScreen.tsx # Post detay + nested commentler + reply
+        │   └── PostDetailScreen.tsx # Post detay + nested commentler + reply + bookmark
         ├── reels/
         │   ├── ReelsScreen.tsx      # Dikey kaydirmali reel (pagingEnabled)
         │   └── CreateReelScreen.tsx # Reel yarat (video picker)
         ├── story/
-        │   ├── CreateStoryScreen.tsx # Story yarat (kamera/galeri)
-        │   └── StoryViewerModal.tsx
+        │   └── CreateStoryScreen.tsx # Story yarat (kamera/galeri)
+        ├── notifications/
+        │   └── NotificationsScreen.tsx # In-app bildiriş tarixçəsi
         ├── camera/
         │   └── CameraScreen.tsx     # Snapchat filterli kamera (8 filtre + 12 sticker)
         ├── chat/
@@ -61,10 +67,12 @@ sosial-media-app/
         │   ├── ChannelSettingsScreen.tsx   # Ban, yasakli kelime, slow mode
         │   └── VoiceChannelScreen.tsx      # Sesli oda UI (mute, screen share)
         ├── search/
-        │   └── SearchScreen.tsx     # User + hashtag axtarisi
+        │   └── SearchScreen.tsx     # User + hashtag + community axtarisi
         ├── profile/
-        │   ├── ProfileScreen.tsx    # Profil (posts, verifications)
+        │   ├── ProfileScreen.tsx    # Profil (posts, reels, saved posts, verification)
         │   └── EditProfileScreen.tsx # Profil duzenle
+        ├── settings/
+        │   └── SettingsScreen.tsx   # Tema, bildiriş tercihleri, profili düzəlt, çıxış
         └── admin/
             └── AdminPanelScreen.tsx # Admin panel (user verify/role)
 ```
@@ -75,18 +83,18 @@ sosial-media-app/
 
 ### Phase 1 — Auth + Profil ✅
 - [x] Supabase auth (email ilə qeydiyyat/giriş)
-- [x] AuthContext (signUp, signIn, signOut, loading, user)
-- [x] LoginScreen, RegisterScreen (dark tema, gradient)
-- [x] ProfileScreen (avatar, bio, post count, verified badge)
+- [x] AuthContext (signUp, signIn, signOut, resetPassword, loading, user)
+- [x] LoginScreen, RegisterScreen, ForgotPasswordScreen (dark tema, gradient)
+- [x] ProfileScreen (avatar, bio, post/reel/saved count, verified badge)
 - [x] EditProfileScreen (username, full_name, bio, avatar upload)
 - [x] AdminPanelScreen (user list → verify/role)
 - [x] `handle_new_user` trigger → auto profile row
 
 ### Phase 2 — Post Feed ✅
-- [x] FeedScreen (FlatList, realtime, pull-refresh, story preview header)
+- [x] FeedScreen (FlatList, realtime, pull-refresh, story preview header, notification bell)
 - [x] CreatePostScreen (text + image picker + compression + hashtag/mention parse)
-- [x] PostDetailScreen (nested comments, reply, like, realtime)
-- [x] PostCard (like ❤️, comment 💬, repost 🔄, share 📤, share via message ✉️)
+- [x] PostDetailScreen (nested comments, reply, like, bookmark, realtime)
+- [x] PostCard (like ❤️, comment 💬, repost 🔄, bookmark 🔖, share 📤, share via message ✉️)
 - [x] Image upload → `post-images` bucket (800px, 70%)
 
 ### Phase 3 — Reels ✅
@@ -119,18 +127,15 @@ sosial-media-app/
 - [x] ChannelChatScreen (ban check, mesaj filter, slow mode throttling)
 - [x] VoiceChannelScreen (join/leave, mute/unmute, screen share indicator, participant list)
 
-### Phase 8 — Kamera + Bildirimler ✅
+### Phase 8 — Kamera ✅
 - [x] CameraScreen (8 renk filtresi: Warm, Cool, Vintage, Noir, Dramatic, Pastel, Neon)
 - [x] 12 emoji sticker overlay (😎🔥❤️💯😂🎉⭐👑🌈🦋🌙⚡)
 - [x] Galeriden foto secimi
 - [x] Post ve ya Story olaraq paylasma
-- [x] Expo Push Token qeydiyyati (bildirimler ucun)
-- [x] Lokal bildirim gonderimi
 - [x] Splash screen (app.json)
 - [x] Kamera/galeri izinleri (iOS infoPlist)
-- [x] Kamera tab navigasiyaya elave edildi
 
-### Phase 9 — Reply to Comments (Nested) ✅
+### Phase 9 — Nested Comments ✅
 - [x] `post_comments` tablosuna `parent_id` əlavə edildi
 - [x] PostDetailScreen-da ierarxik comment gostərimi (replies indentation)
 - [x] Her comment-de "Cavabla" duyməsi
@@ -149,6 +154,54 @@ sosial-media-app/
 - [x] Hashtag-lərə klik -> SearchScreen-de hemin hashtag postlari gosterilir
 - [x] Mention-lara klik -> SearchScreen-de hemin istifadeci axtarisi
 - [x] SearchScreen-de "Hashtag" tab-i (post neticeleri ile)
+
+### Phase 12 — Search ✅
+- [x] SearchScreen (User + Hashtag + Community axtarisi)
+- [x] Debounce (300ms) ile canli axtaris
+- [x] User axtarisi (username/full_name ilə ilike)
+- [x] Hashtag axtarisi (post neticeleri ile)
+- [x] Community axtarisi (name/description ilə ilike)
+- [x] Follow/unfollow birbaşa axtaris neticelerinde
+
+### Phase 13 — Post Saves / Bookmark ✅
+- [x] `saved_posts` tablosu (user_id, post_id unique)
+- [x] PostCard-da bookmark duyməsi (🔖)
+- [x] PostDetailScreen-da bookmark duyməsi
+- [x] ProfileScreen-de "Saxlanılan" tab-i (yalnız öz profilinde)
+- [x] is_saved durumu feed ve post detailde gosterilir
+
+### Phase 14 — Theme (Dark/Light) ✅
+- [x] ThemeContext (dark/light toggle, AsyncStorage ile persist)
+- [x] SettingsScreen-de tema deyisdirme (🌙/☀️)
+- [x] Tam color paleti (dark + light)
+- [x] Butun ekranlarda useTheme hook-u ile dinamik renkler
+
+### Phase 15 — Forgot Password ✅
+- [x] `resetPasswordForEmail` metodu auth.tsx-de
+- [x] ForgotPasswordScreen (email daxil et → link gondər)
+- [x] LoginScreen-de "Şifrəni unutdun?" linki
+- [x] AuthNavigator-da ForgotPassword route-u
+
+### Phase 16 — Push Notifications ✅
+- [x] Expo push token qeydiyyati (profiles.expo_push_token)
+- [x] OneSignal Edge Function (`supabase/functions/send-notification/`)
+- [x] Edge Function həm OneSignal, həm Expo Push API destekleyir
+- [x] Webhook formatinda DB trigger payload-larini qebul edir
+- [x] Bildirim tercihlerine gore filtreleme (likes/comments/follows/mentions)
+- [x] `notification_preferences` tablosu (likes/comments/follows/mentions/messages)
+
+### Phase 17 — In-App Notifications ✅
+- [x] `notifications` tablosu (bildiriş tarixçəsi)
+- [x] DB trigger-ları: like, comment, follow, mention → auto notification
+- [x] NotificationsScreen (bildiriş tarixçəsi, oxunmuş/oxunmamış)
+- [x] FeedScreen-de bildiriş zəngi (🔔) → notifications screen
+- [x] Bildirişler oxundu kimi isarelenebilir
+
+### Phase 18 — Notification Preferences ✅
+- [x] SettingsScreen-de bildiriş tercihleri (Switch toggles)
+- [x] Likes, Comments, Follows, Mentions, Messages
+- [x] Varsayılan olaraq hamisi aktiv
+- [x] Edge Function tercihleri yoxlayaraq push gonderir
 
 ---
 
@@ -179,6 +232,9 @@ sosial-media-app/
 | `channel_messages` | channel_id, user_id, content, created_at |
 | `channel_bans` | channel_id, user_id, reason, expires_at, banned_at |
 | `voice_participants` | channel_id, user_id, muted, screen_sharing, joined_at |
+| `saved_posts` | user_id, post_id (unique), created_at |
+| `notifications` | user_id, type, title, body, data, read, created_at |
+| `notification_preferences` | user_id (unique), likes, comments, follows, mentions, messages |
 
 ### Storage Buckets
 
@@ -202,6 +258,9 @@ sosial-media-app/
 - **conversations/participants/messages**: Participant only
 - **communities/members/channels/messages**: Member only
 - **channel_bans/voice_participants**: Member read, admin manage
+- **saved_posts**: Self view/insert/delete
+- **notifications**: Self view/update
+- **notification_preferences**: Self view/upsert
 
 ---
 
@@ -231,6 +290,22 @@ Supabase Dashboard → SQL Editor'da sirayla calistir:
 2. `supabase-storage-setup.sql` (eger mevcud proyekte elave edirsinizse)
 3. `supabase-channels.sql`
 
+### Edge Function Deploy
+```bash
+# Supabase Edge Function-u deploy et
+npx supabase functions deploy send-notification
+
+# Environment deyiskenlerini set et
+npx supabase secrets set ONE_SIGNAL_APP_ID=your_app_id
+npx supabase secrets set ONE_SIGNAL_API_KEY=your_api_key
+```
+
+Database Webhook-larini Supabase Dashboard-dan elave edin:
+- `post_likes` INSERT → `send-notification` Edge Function
+- `post_comments` INSERT → `send-notification` Edge Function
+- `follows` INSERT → `send-notification` Edge Function
+- `mentions` INSERT → `send-notification` Edge Function
+
 ### Node.js Versiyasi
 Expo SDK 56 teleb edir: **Node.js >= 20.19.4**
 Hal-hazirda: v18.20.8 — yenilemek ucun:
@@ -255,30 +330,27 @@ nvm use 20
 | Auth trigger → auto profile | Hər yeni istifadəçi üçün profil yaranır |
 | Nested comments (parent_id) | Self-referencing foreign key, flat query + client-side grouping |
 | Hashtag/mention parse on create | Post yaradilan anda parse edilib ayrı tablolara yazilir |
+| OneSignal + Expo Push dual | OneSignal mövcud deyilse Expo Push fallback |
+| DB trigger → notifications | Like/comment/follow/mention-da avtomatik bildiriş yaranır |
+| notification_preferences | İstifadəçilər bildiriş növlərini fərdiləşdirə bilir |
 
 ---
 
 ## ⏳ Gələcək Planlar
 
 ### Yaxın
-- [ ] Camera — real-time face detection / face filters (react-native-vision-camera + MLKit)
-- [ ] Camera — video kayıt
-- [ ] Bildirim kanalları — push notification server-side (FCM via Supabase Edge Functions)
-
-### Orta Vade
 - [ ] Telefon login (OTP)
 - [ ] Google login
-- [ ] Search (kullanıcı, post, community)
-- [ ] Forgot password
-- [ ] Post saves / bookmark
-- [ ] Dark / light tema toggle
+- [ ] Camera — real-time face detection / face filters (react-native-vision-camera + MLKit)
+- [ ] Camera — video kayıt
 - [ ] Profil QR kodu
-
-### Uzun Vade
 - [ ] Canlı yayın
+
+### Orta Vade
 - [ ] WebRTC sesli/görüntülü arama (voice channel)
 - [ ] Admin panel → content moderation (post/comment report)
-- [ ] Bildirim tercihleri (ayarlar)
+
+### Uzun Vade
 - [ ] EAS Build → App Store / Google Play
 - [ ] OTA güncelleme (expo-updates)
 - [ ] Performance optimization (FlashList, lazy loading)
@@ -315,18 +387,34 @@ Firebase Dynamic Links və ya [Branch.io](https://branch.io) istifadə etmək:
 
 1. **Node.js v18** — Expo SDK 56 uyumlu deyil, Node >=20.19.4 teleb olunur
 2. **Voice Channel audio** — UI hazirdir, amma canli ses ucun WebRTC (react-native-webrtc) elave edilmelidir
-3. **Push bildirimler** — `expo_push_token` kaydedilir, amma gondermek ucun server-side (Supabase Edge Function) yazilmalidir; mention bildirimleri de bununla gonderilecek
-4. **Real face filters** — Hazirki renk filtresi + sticker cozumudur; gercek AR effektler ucun `react-native-vision-camera` + Frame Processor teleb olunur
+3. **Real face filters** — Hazirki renk filtresi + sticker cozumudur; gercek AR effektler ucun `react-native-vision-camera` + Frame Processor teleb olunur
+4. **Database Webhooks** — Bildirim Edge Function-u tetiklemek ucun Supabase Dashboard-dan 4 webhook elave edilmelidir (post_likes, post_comments, follows, mentions INSERT)
 
 ---
 
 ## 📱 Tab Navigasiyasi
 
 ```
-1. 🏠 Feed       — Post akisi, story preview
-2. 📷 Kamera     — Snapchat filterli kamera
+1. 🏠 Feed       — Post akisi, story preview, bildiriş zəngi
+2. 🔍 Axtar      — User, hashtag, community axtarisi
 3. ▶️ Reels      — TikTok stil dikey video
-4. 💬 Chat       — Mesajlasma
-5. 👥 Topluluq   — Discord stil kanallar
-6. 👤 Profil     — Profil, ayarlar, admin panel
+4. 👥 Topluluq   — Discord stil kanallar
+5. 👤 Profil     — Profil, saxlanılan postlar, ayarlar, admin panel
 ```
+
+## 🆕 27 İyun 2026 — Yeni Əlavə Edilənlər
+
+| # | Dəyişiklik |
+|---|------------|
+| 1 | **Forgot Password** — `auth.tsx`-ə `resetPasswordForEmail`, `ForgotPasswordScreen`, route, LoginScreen-də "Şifrəni unutdun?" linki |
+| 2 | **Post Saves / Bookmark** — `saved_posts` tablosu, PostCard/PostDetail-də 🔖 bookmark, Profile-də "Saxlanılan" tabı |
+| 3 | **Notification Preferences** — `notification_preferences` tablosu, SettingsScreen-də Switch toggle-lar (likes/comments/follows/mentions/messages) |
+| 4 | **Push Notifications** — Edge Function yeniləndi (OneSignal + Expo Push dual), DB trigger-ları: notify_like, notify_comment, notify_follow, notify_mention |
+| 5 | **In-App Notifications** — `notifications` tablosu, `NotificationsScreen`, Feed-də 🔔 zəng ikonu |
+| 6 | **Community Search** — SearchScreen-ə "Community" tab-ı əlavə edildi (name/description ilə axtarış) |
+| 7 | **Password Visibility Toggle** — FormInput-a göz ikonu əlavə edildi (`👁️`/`👁️‍🗨️`) |
+| 8 | **Bugfix: ProfileScreen syntax** — Ternary `? : ? : ?` düzəldi (mediaTab 3 yollu) |
+| 9 | **Bugfix: signOut** — `auth.tsx`-də error handling + force state clear (çıxış işləmədi) |
+| 10 | **Bugfix: SQL policy** — `notification_preferences`-da duplicate policy adı düzəldi |
+| 11 | **Bugfix: post_comments.parent_id** — `ALTER TABLE ADD COLUMN IF NOT EXISTS` əlavə edildi |
+| 12 | **Bugfix: ProfileScreen refresh** — `useFocusEffect` + mediaTab dəyişəndə saved posts yenilənir |

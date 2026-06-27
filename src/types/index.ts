@@ -38,4 +38,34 @@ export type Post = {
   likes_count?: number;
   comments_count?: number;
   is_liked?: boolean;
+  is_saved?: boolean;
+};
+
+export type SavedPost = {
+  id: string;
+  user_id: string;
+  post_id: string;
+  created_at: string;
+  post?: Post;
+};
+
+export type AppNotification = {
+  id: string;
+  user_id: string;
+  type: 'like' | 'comment' | 'follow' | 'mention' | 'message';
+  title: string;
+  body: string | null;
+  data: any;
+  read: boolean;
+  created_at: string;
+};
+
+export type NotificationPreferences = {
+  id: string;
+  user_id: string;
+  likes: boolean;
+  comments: boolean;
+  follows: boolean;
+  mentions: boolean;
+  messages: boolean;
 };

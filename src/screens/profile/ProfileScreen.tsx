@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, Image, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
@@ -8,7 +9,7 @@ import VerifiedBadge from '../../components/VerifiedBadge';
 import { fonts } from '../../constants/theme';
 import type { Profile } from '../../types';
 
-type MediaTab = 'posts' | 'reels';
+type MediaTab = 'posts' | 'reels' | 'saved';
 
 export default function ProfileScreen({ navigation, route }: any) {
   const { profile: myProfile, user } = useAuth();
@@ -23,10 +24,21 @@ export default function ProfileScreen({ navigation, route }: any) {
   const [mediaTab, setMediaTab] = useState<MediaTab>('posts');
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [userReels, setUserReels] = useState<any[]>([]);
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
 
   const targetId = paramUserId || user?.id;
 
-  useEffect(() => {
+  async function fetchSavedPosts() {
+    if (!targetId || !isOwnProfile) return;
+    const { data } = await supabase
+      .from('saved_posts')
+      .select('*, post:posts(*, profile:profiles(*))')
+      .eq('user_id', targetId)
+      .order('created_at', { ascending: false });
+    setSavedPosts(data?.map((s: any) => s.post) || []);
+  }
+
+  useFocusEffect(useCallback(() => {
     if (!targetId) return;
 
     async function loadProfile() {
@@ -45,9 +57,17 @@ export default function ProfileScreen({ navigation, route }: any) {
         .then(({ data }) => setUserPosts(data || []));
       supabase.from('reels').select('*').eq('user_id', targetId).order('created_at', { ascending: false })
         .then(({ data }) => setUserReels(data || []));
+
+      if (isOwnProfile) {
+        fetchSavedPosts();
+      }
     }
     loadProfile();
-  }, [targetId, user, paramUserId]);
+  }, [targetId, user, paramUserId, isOwnProfile]));
+
+  useEffect(() => {
+    if (mediaTab === 'saved') fetchSavedPosts();
+  }, [mediaTab]);
 
   const displayProfile = isOwnProfile ? myProfile : profileUser;
   const imagePosts = userPosts.filter((p: any) => p.image_url);
@@ -125,6 +145,15 @@ export default function ProfileScreen({ navigation, route }: any) {
           <Text style={[styles.tabIcon]}>🎬</Text>
           <Text style={[styles.tabLabel, { color: mediaTab === 'reels' ? colors.primary : colors.textMuted }]}>Videolar</Text>
         </TouchableOpacity>
+        {isOwnProfile && (
+          <TouchableOpacity
+            style={[styles.tab, mediaTab === 'saved' && [styles.activeTab, { borderBottomColor: colors.primary }]]}
+            onPress={() => setMediaTab('saved')}
+          >
+            <Text style={[styles.tabIcon]}>🔖</Text>
+            <Text style={[styles.tabLabel, { color: mediaTab === 'saved' ? colors.primary : colors.textMuted }]}>Saxlanılan</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {mediaTab === 'posts' ? (
@@ -148,7 +177,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>Hələ şəkil yoxdur</Text>
           </View>
         )
-      ) : (
+      ) : mediaTab === 'reels' ? (
         videoReels.length > 0 ? (
           <FlatList
             data={videoReels}
@@ -165,6 +194,33 @@ export default function ProfileScreen({ navigation, route }: any) {
         ) : (
           <View style={styles.emptyState}>
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>Hələ video yoxdur</Text>
+          </View>
+        )
+      ) : (
+        savedPosts.length > 0 ? (
+          <FlatList
+            data={savedPosts}
+            numColumns={3}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.grid}
+            renderItem={({ item }: { item: any }) => (
+              <TouchableOpacity
+                style={[styles.gridItem, { backgroundColor: colors.card }]}
+                onPress={() => navigation.navigate('FeedTab', { screen: 'PostDetail', params: { post: item, source: 'ProfileTab' } })}
+              >
+                {item.image_url ? (
+                  <Image source={{ uri: item.image_url }} style={styles.gridImage} />
+                ) : (
+                  <View style={[styles.gridImage, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={{ fontSize: 10, color: colors.textMuted, textAlign: 'center', padding: 2 }} numberOfLines={3}>{item.content}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>Saxlanılan post yoxdur</Text>
           </View>
         )
       )}

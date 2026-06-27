@@ -16,9 +16,10 @@ export default function SearchScreen({ navigation, route }: any) {
   const [query, setQuery] = useState(initialHashtag || initialSearchUser || '');
   const [results, setResults] = useState<Profile[]>([]);
   const [hashtagResults, setHashtagResults] = useState<any[]>([]);
+  const [communityResults, setCommunityResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
-  const [mode, setMode] = useState<'users' | 'hashtags'>(initialHashtag ? 'hashtags' : 'users');
+  const [mode, setMode] = useState<'users' | 'hashtags' | 'communities'>(initialHashtag ? 'hashtags' : 'users');
 
   async function fetchFollowingIds() {
     if (!user) return;
@@ -34,7 +35,7 @@ export default function SearchScreen({ navigation, route }: any) {
   }, []));
 
   useEffect(() => {
-    if (!query.trim()) { setResults([]); setHashtagResults([]); return; }
+    if (!query.trim()) { setResults([]); setHashtagResults([]); setCommunityResults([]); return; }
     const timer = setTimeout(async () => {
       setSearching(true);
 
@@ -55,6 +56,16 @@ export default function SearchScreen({ navigation, route }: any) {
           setHashtagResults(postsData || []);
         }
         setResults([]);
+        setCommunityResults([]);
+      } else if (mode === 'communities') {
+        const { data } = await supabase
+          .from('communities')
+          .select('*')
+          .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+          .limit(20);
+        if (data) setCommunityResults(data);
+        setResults([]);
+        setHashtagResults([]);
       } else {
         const { data } = await supabase
           .from('profiles')
@@ -63,6 +74,7 @@ export default function SearchScreen({ navigation, route }: any) {
           .limit(20);
         if (data) setResults(data);
         setHashtagResults([]);
+        setCommunityResults([]);
       }
 
       setSearching(false);
@@ -90,7 +102,7 @@ export default function SearchScreen({ navigation, route }: any) {
         <Text style={[styles.searchIcon, { color: colors.textMuted }]}>🔍</Text>
         <TextInput
           style={[styles.input, { color: colors.text }]}
-          placeholder="İstifadəçi və ya #hashtag axtar..."
+          placeholder="İstifadəçi, #hashtag və ya community axtar..."
           placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={(t) => { setQuery(t); if (t.startsWith('#')) setMode('hashtags'); else setMode('users'); }}
@@ -117,6 +129,12 @@ export default function SearchScreen({ navigation, route }: any) {
         >
           <Text style={[styles.tabText, { color: mode === 'hashtags' ? colors.primary : colors.textMuted }]}>Hashtag</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, mode === 'communities' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => setMode('communities')}
+        >
+          <Text style={[styles.tabText, { color: mode === 'communities' ? colors.primary : colors.textMuted }]}>Community</Text>
+        </TouchableOpacity>
       </View>
 
       {searching ? (
@@ -136,6 +154,26 @@ export default function SearchScreen({ navigation, route }: any) {
             </TouchableOpacity>
           )}
           ListEmptyComponent={null}
+        />
+      ) : mode === 'communities' && communityResults.length > 0 ? (
+        <FlatList
+          data={communityResults}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.userItem, { borderBottomColor: colors.border }]}
+              onPress={() => navigation.navigate('CommunityTab', { screen: 'CommunityDetail', params: { communityId: item.id, community: item } })}
+            >
+              <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                <Text style={styles.avatarText}>{item.name?.charAt(0).toUpperCase() || 'C'}</Text>
+              </View>
+              <View style={styles.userInfo}>
+                <Text style={[styles.username, { color: colors.text }]}>{item.name}</Text>
+                {item.description && <Text style={[styles.fullName, { color: colors.textMuted }]} numberOfLines={1}>{item.description}</Text>}
+              </View>
+            </TouchableOpacity>
+          )}
         />
       ) : mode === 'users' && results.length > 0 ? (
         <FlatList

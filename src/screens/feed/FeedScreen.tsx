@@ -34,6 +34,12 @@ export default function FeedScreen({ navigation }: any) {
     if (!user) return;
     const followingIds = await fetchFollowingIds();
 
+    const { data: savedData } = await supabase
+      .from('saved_posts')
+      .select('post_id')
+      .eq('user_id', user.id);
+    const savedSet = new Set((savedData || []).map((s: any) => s.post_id));
+
     const { data } = await supabase
       .from('posts')
       .select(`*, profile:profiles(*), likes:post_likes(count), comments:post_comments(count)`)
@@ -49,6 +55,7 @@ export default function FeedScreen({ navigation }: any) {
         likes_count: p.likes?.[0]?.count ?? 0,
         comments_count: p.comments?.[0]?.count ?? 0,
         is_liked: false,
+        is_saved: savedSet.has(p.id),
       })));
     }
     setLoading(false);
@@ -98,6 +105,9 @@ export default function FeedScreen({ navigation }: any) {
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Text style={[styles.logo, { color: colors.primary }]}>Ticcer</Text>
         <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={[styles.bellBtn, { backgroundColor: colors.primary + '20' }]}>
+            <Text style={styles.bellIcon}>🔔</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('CreateStory')} style={[styles.storyBtn, { backgroundColor: colors.primary + '30' }]}>
             <Text style={[styles.storyBtnText, { color: colors.primary }]}>Story</Text>
           </TouchableOpacity>
@@ -179,6 +189,8 @@ const styles = StyleSheet.create({
   },
   logo: { fontSize: fonts.sizes.xl, fontWeight: fonts.weights.bold },
   headerRight: { flexDirection: 'row', gap: 8 },
+  bellBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  bellIcon: { fontSize: 18 },
   storyBtn: { borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14 },
   storyBtnText: { fontSize: fonts.sizes.sm, fontWeight: fonts.weights.semibold },
   createBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },

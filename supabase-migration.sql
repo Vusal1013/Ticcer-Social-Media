@@ -81,6 +81,8 @@ CREATE TABLE IF NOT EXISTS post_comments (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE post_comments ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES post_comments(id) ON DELETE CASCADE;
+
 CREATE TABLE IF NOT EXISTS reposts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -201,6 +203,37 @@ CREATE TABLE IF NOT EXISTS channel_messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS saved_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS notification_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  likes BOOLEAN DEFAULT true,
+  comments BOOLEAN DEFAULT true,
+  follows BOOLEAN DEFAULT true,
+  mentions BOOLEAN DEFAULT true,
+  messages BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('like', 'comment', 'follow', 'mention', 'message')),
+  title TEXT NOT NULL,
+  body TEXT,
+  data JSONB,
+  read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ===== RLS =====
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
@@ -221,6 +254,9 @@ ALTER TABLE communities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_channels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE channel_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saved_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- ===== RLS POLICIES (idempotent) =====
 DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON profiles;
@@ -329,6 +365,28 @@ CREATE POLICY "Members can send channel messages" ON channel_messages FOR INSERT
     WHERE cm.community_id = cc.community_id AND cm.user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Users can view own saved posts" ON saved_posts;
+DROP POLICY IF EXISTS "Users can save posts" ON saved_posts;
+DROP POLICY IF EXISTS "Users can unsave posts" ON saved_posts;
+
+CREATE POLICY "Users can view own saved posts" ON saved_posts FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Users can save posts" ON saved_posts FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Users can unsave posts" ON saved_posts FOR DELETE USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can view own notification preferences" ON notification_preferences;
+DROP POLICY IF EXISTS "Users can insert own notification preferences" ON notification_preferences;
+DROP POLICY IF EXISTS "Users can update own notification preferences" ON notification_preferences;
+
+CREATE POLICY "Users can view own notification preferences" ON notification_preferences FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Users can insert own notification preferences" ON notification_preferences FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Users can update own notification preferences" ON notification_preferences FOR UPDATE USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
+
+CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Users can update own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid());
+
 -- ===== TRIGGER =====
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
@@ -348,3 +406,66 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- ===== NOTIFICATION TRIGGERS =====
+CREATE OR REPLACE FUNCTION notify_like()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.notifications (user_id, type, title, body, data)
+  SELECT p.user_id, 'like', 'Yeni bəyənmə', (SELECT full_name FROM profiles WHERE id = NEW.user_id) || ' postunuzu bəyəndi',
+    jsonb_build_object('post_id', NEW.post_id, 'actor_id', NEW.user_id)
+  FROM posts p WHERE p.id = NEW.post_id AND p.user_id != NEW.user_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_like_insert ON post_likes;
+CREATE TRIGGER on_like_insert
+  AFTER INSERT ON post_likes
+  FOR EACH ROW EXECUTE FUNCTION notify_like();
+
+CREATE OR REPLACE FUNCTION notify_comment()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.notifications (user_id, type, title, body, data)
+  SELECT p.user_id, 'comment', 'Yeni şərh', (SELECT full_name FROM profiles WHERE id = NEW.user_id) || ' postunuza şərh yazdı',
+    jsonb_build_object('post_id', NEW.post_id, 'comment_id', NEW.id, 'actor_id', NEW.user_id)
+  FROM posts p WHERE p.id = NEW.post_id AND p.user_id != NEW.user_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_comment_insert ON post_comments;
+CREATE TRIGGER on_comment_insert
+  AFTER INSERT ON post_comments
+  FOR EACH ROW EXECUTE FUNCTION notify_comment();
+
+CREATE OR REPLACE FUNCTION notify_follow()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.notifications (user_id, type, title, body, data)
+  VALUES (NEW.following_id, 'follow', 'Yeni izləyici', (SELECT full_name FROM profiles WHERE id = NEW.follower_id) || ' sizi izləməyə başladı',
+    jsonb_build_object('actor_id', NEW.follower_id));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_follow_insert ON follows;
+CREATE TRIGGER on_follow_insert
+  AFTER INSERT ON follows
+  FOR EACH ROW EXECUTE FUNCTION notify_follow();
+
+CREATE OR REPLACE FUNCTION notify_mention()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.notifications (user_id, type, title, body, data)
+  VALUES (NEW.user_id, 'mention', 'Sizdən bəhs edildi', (SELECT full_name FROM profiles WHERE id IN (SELECT user_id FROM posts WHERE id = NEW.post_id)) || ' sizi qeyd etdi',
+    jsonb_build_object('post_id', NEW.post_id, 'actor_id', (SELECT user_id FROM posts WHERE id = NEW.post_id)));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_mention_insert ON mentions;
+CREATE TRIGGER on_mention_insert
+  AFTER INSERT ON mentions
+  FOR EACH ROW EXECUTE FUNCTION notify_mention();

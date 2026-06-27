@@ -39,6 +39,7 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
   const navigation = useNavigation<any>();
   const [liked, setLiked] = useState(post.is_liked ?? false);
   const [likesCount, setLikesCount] = useState(post.likes_count ?? 0);
+  const [saved, setSaved] = useState(post.is_saved ?? false);
   const [showShare, setShowShare] = useState(false);
 
   function handleHashtagPress(tag: string) {
@@ -65,6 +66,17 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
       await supabase.from('post_likes').insert({ user_id: user.id, post_id: post.id });
       setLiked(true);
       setLikesCount(prev => prev + 1);
+    }
+  }
+
+  async function toggleSave() {
+    if (!user) return;
+    if (saved) {
+      await supabase.from('saved_posts').delete().eq('user_id', user.id).eq('post_id', post.id);
+      setSaved(false);
+    } else {
+      await supabase.from('saved_posts').insert({ user_id: user.id, post_id: post.id });
+      setSaved(true);
     }
   }
 
@@ -145,6 +157,12 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
 
         <TouchableOpacity onPress={handleRepost} style={styles.actionBtn}>
           <Text style={styles.actionIcon}>🔄</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={toggleSave} style={styles.actionBtn}>
+          <Text style={[styles.actionIcon, saved && { color: '#FFD700' }]}>
+            {saved ? '🔖' : '🏷️'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setShowShare(true)} style={styles.actionBtn}>

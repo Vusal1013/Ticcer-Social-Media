@@ -25,6 +25,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import AdminPanelScreen from '../screens/admin/AdminPanelScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
+import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import { fonts } from '../constants/theme';
 
 const Tab = createBottomTabNavigator();
@@ -40,6 +41,7 @@ function FeedStack() {
       <Stack.Screen name="ChatScreen" component={ChatScreen} />
       <Stack.Screen name="ConversationsList" component={ConversationsListScreen} />
       <Stack.Screen name="NewConversation" component={NewConversationScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
     </Stack.Navigator>
   );
 }
