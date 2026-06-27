@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
 import VerifiedBadge from '../../components/VerifiedBadge';
+import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../constants/theme';
 import type { Profile } from '../../types';
 
@@ -82,9 +83,9 @@ export default function ProfileScreen({ navigation, route }: any) {
               <Text style={[styles.adminText, { color: colors.warning }]}>Admin Panel</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.settingsBtn, { borderColor: colors.border }]}>
-            <Text style={{ fontSize: 20 }}>⚙️</Text>
-          </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.settingsBtn, { borderColor: colors.border }]}>
+              <Ionicons name="settings-outline" size={20} color={colors.text} />
+            </TouchableOpacity>
         </View>
       )}
 
@@ -135,14 +136,14 @@ export default function ProfileScreen({ navigation, route }: any) {
           style={[styles.tab, mediaTab === 'posts' && [styles.activeTab, { borderBottomColor: colors.primary }]]}
           onPress={() => setMediaTab('posts')}
         >
-          <Text style={[styles.tabIcon]}>🖼️</Text>
+          <Ionicons name="image-outline" size={16} color={mediaTab === 'posts' ? colors.primary : colors.textMuted} />
           <Text style={[styles.tabLabel, { color: mediaTab === 'posts' ? colors.primary : colors.textMuted }]}>Şəkillər</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, mediaTab === 'reels' && [styles.activeTab, { borderBottomColor: colors.primary }]]}
           onPress={() => setMediaTab('reels')}
         >
-          <Text style={[styles.tabIcon]}>🎬</Text>
+          <Ionicons name="videocam-outline" size={16} color={mediaTab === 'reels' ? colors.primary : colors.textMuted} />
           <Text style={[styles.tabLabel, { color: mediaTab === 'reels' ? colors.primary : colors.textMuted }]}>Videolar</Text>
         </TouchableOpacity>
         {isOwnProfile && (
@@ -150,7 +151,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             style={[styles.tab, mediaTab === 'saved' && [styles.activeTab, { borderBottomColor: colors.primary }]]}
             onPress={() => setMediaTab('saved')}
           >
-            <Text style={[styles.tabIcon]}>🔖</Text>
+            <Ionicons name="bookmark" size={16} color={mediaTab === 'saved' ? colors.primary : colors.textMuted} />
             <Text style={[styles.tabLabel, { color: mediaTab === 'saved' ? colors.primary : colors.textMuted }]}>Saxlanılan</Text>
           </TouchableOpacity>
         )}
@@ -187,7 +188,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             renderItem={({ item }: { item: any }) => (
               <TouchableOpacity style={[styles.gridItem, { backgroundColor: colors.card }]}>
                 <Image source={{ uri: item.thumbnail_url || item.video_url }} style={styles.gridImage} />
-                <Text style={styles.videoOverlay}>▶️</Text>
+                <Ionicons name="play-outline" size={24} color="#FFFFFF" />
               </TouchableOpacity>
             )}
           />

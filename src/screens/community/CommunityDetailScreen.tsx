@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import VerifiedBadge from '../../components/VerifiedBadge';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../../constants/theme';
 
 export default function CommunityDetailScreen({ route, navigation }: any) {
@@ -67,7 +68,7 @@ export default function CommunityDetailScreen({ route, navigation }: any) {
               }
             }}
           >
-            <Text style={styles.channelIcon}>{item.type === 'voice' ? '🎤' : '#'}</Text>
+            {item.type === 'voice' ? <Ionicons name="microphone-outline" size={18} color={colors.textMuted} style={{ marginRight: 10 }} /> : <Text style={styles.channelIcon}>#</Text>}
             <Text style={styles.channelName}>{item.name}</Text>
             <Text style={styles.channelType}>{item.type === 'voice' ? 'Sesli' : ''}</Text>
           </TouchableOpacity>
@@ -104,7 +105,7 @@ export default function CommunityDetailScreen({ route, navigation }: any) {
                   style={[styles.typeBtn, channelType === 'voice' && styles.typeBtnActive]}
                   onPress={() => setChannelType('voice')}
                 >
-                  <Text style={[styles.typeBtnText, channelType === 'voice' && styles.typeBtnTextActive]}>🎤 Ses</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="microphone-outline" size={16} color={channelType === 'voice' ? colors.white : colors.textMuted} /><Text style={[styles.typeBtnText, channelType === 'voice' && styles.typeBtnTextActive, { marginLeft: 4 }]}> Ses</Text></View>
                 </TouchableOpacity>
               </View>
               <View style={styles.createActions}>

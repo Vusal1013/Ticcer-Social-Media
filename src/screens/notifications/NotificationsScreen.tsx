@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../constants/theme';
 import type { AppNotification } from '../../types';
 
@@ -37,12 +38,12 @@ export default function NotificationsScreen({ navigation }: any) {
 
   function getIcon(type: string) {
     switch (type) {
-      case 'like': return '❤️';
-      case 'comment': return '💬';
-      case 'follow': return '👥';
-      case 'mention': return '📢';
-      case 'message': return '✉️';
-      default: return '🔔';
+      case 'like': return 'heart';
+      case 'comment': return 'chatbubble-outline';
+      case 'follow': return 'people-outline';
+      case 'mention': return 'megaphone-outline';
+      case 'message': return 'mail-outline';
+      default: return 'notifications-outline';
     }
   }
 
@@ -68,7 +69,7 @@ export default function NotificationsScreen({ navigation }: any) {
               style={[styles.notifItem, !item.read && { backgroundColor: colors.primary + '10' }, { borderBottomColor: colors.border }]}
               onPress={() => markAsRead(item.id)}
             >
-              <Text style={styles.notifIcon}>{getIcon(item.type)}</Text>
+              <Ionicons name={getIcon(item.type)} size={24} color={colors.primary} style={{ marginRight: 12 }} />
               <View style={styles.notifContent}>
                 <Text style={[styles.notifTitle, { color: colors.text }]}>{item.title}</Text>
                 {item.body && <Text style={[styles.notifBody, { color: colors.textSecondary }]}>{item.body}</Text>}

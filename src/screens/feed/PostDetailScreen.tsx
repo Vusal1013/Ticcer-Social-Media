@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
 import VerifiedBadge from '../../components/VerifiedBadge';
+import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../constants/theme';
 import type { Post } from '../../types';
 
@@ -196,16 +197,14 @@ export default function PostDetailScreen({ route, navigation }: any) {
 
             <View style={[styles.actionsRow, { borderTopColor: colors.border }]}>
               <TouchableOpacity onPress={toggleLike} style={styles.actionBtn}>
-                <Text style={[styles.actionIcon, { color: liked ? colors.error : colors.textSecondary }]}>
-                  {liked ? '❤️' : '🤍'}
-                </Text>
+                <Ionicons name={liked ? 'heart' : 'heart-outline'} size={18} color={liked ? colors.error : colors.textSecondary} />
                 <Text style={[styles.actionCountText, { color: liked ? colors.error : colors.textSecondary }]}>
                   {likesCount}
                 </Text>
               </TouchableOpacity>
 
               <View style={styles.actionBtn}>
-                <Text style={styles.actionIcon}>💬</Text>
+                <Ionicons name="chatbubble-outline" size={18} color={colors.textSecondary} />
                 <Text style={[styles.actionCountText, { color: colors.textSecondary }]}>{comments.length}</Text>
               </View>
 
@@ -217,13 +216,11 @@ export default function PostDetailScreen({ route, navigation }: any) {
                   supabase.from('saved_posts').insert({ user_id: user.id, post_id: post.id }).then(() => setSaved(true));
                 }
               }} style={styles.actionBtn}>
-                <Text style={[styles.actionIcon, { color: saved ? '#FFD700' : colors.textSecondary }]}>
-                  {saved ? '🔖' : '🏷️'}
-                </Text>
+                <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={18} color={saved ? '#FFD700' : colors.textSecondary} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => setShowShare(true)} style={styles.actionBtn}>
-                <Text style={[styles.actionIcon, { color: colors.textSecondary }]}>📤</Text>
+                <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -248,12 +245,12 @@ export default function PostDetailScreen({ route, navigation }: any) {
                 {replyTo.profile?.full_name}'ə cavab
               </Text>
               <TouchableOpacity onPress={() => setReplyTo(null)}>
-                <Text style={[styles.replyCancel, { color: colors.textMuted }]}>✕</Text>
+                <Ionicons name="close-outline" size={16} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
           )}
           <View style={[styles.inputInner, { backgroundColor: colors.background }]}>
-            <Text style={[styles.inputIcon, { color: colors.textMuted }]}>💬</Text>
+            <Ionicons name="chatbubble-outline" size={14} color={colors.textMuted} />
             <TextInput
               style={[styles.input, { color: colors.text }]}
               placeholder="Şərh yaz..."
@@ -269,7 +266,7 @@ export default function PostDetailScreen({ route, navigation }: any) {
           style={[styles.sendBtn, { backgroundColor: newComment.trim() ? colors.primary : colors.textMuted + '40' }]}
           disabled={!newComment.trim()}
         >
-          <Text style={styles.sendIcon}>➡️</Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.white} />
         </TouchableOpacity>
       </View>
 
@@ -281,7 +278,7 @@ export default function PostDetailScreen({ route, navigation }: any) {
 
             <TouchableOpacity style={styles.sheetOption} onPress={() => { setShowShare(false); navigation.navigate('ConversationsList', { sharePost: post }); }}>
               <View style={[styles.sheetIcon, { backgroundColor: colors.primary + '20' }]}>
-                <Text style={styles.sheetEmoji}>💬</Text>
+                <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
               </View>
               <View style={styles.sheetOptionText}>
                 <Text style={[styles.sheetOptionTitle, { color: colors.text }]}>Dostlara göndər</Text>
@@ -299,7 +296,7 @@ export default function PostDetailScreen({ route, navigation }: any) {
               } catch {}
             }}>
               <View style={[styles.sheetIcon, { backgroundColor: colors.secondary + '20' }]}>
-                <Text style={styles.sheetEmoji}>📤</Text>
+                <Ionicons name="share-outline" size={22} color={colors.secondary} />
               </View>
               <View style={styles.sheetOptionText}>
                 <Text style={[styles.sheetOptionTitle, { color: colors.text }]}>Digər proqramlara göndər</Text>

@@ -2,6 +2,7 @@ import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/theme';
 import AuthNavigator from './AuthNavigator';
@@ -87,8 +88,8 @@ function ProfileStack() {
   );
 }
 
-function TabIcon({ label, color, active }: { label: string; color: string; active: boolean }) {
-  return <Text style={{ fontSize: 22, opacity: active ? 1 : 0.5 }}>{label}</Text>;
+function TabBarIcon({ iconName, color }: { iconName: keyof typeof Ionicons.glyphMap; color: string }) {
+  return <Ionicons name={iconName} size={24} color={color} />;
 }
 
 function MainTabs() {
@@ -121,14 +122,14 @@ function MainTabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarIcon: ({ focused, color }) => {
-          const icons: Record<string, string> = {
-            FeedTab: '🏠',
-            SearchTab: '🔍',
-            ReelsTab: '▶️',
-            CommunityTab: '👥',
-            ProfileTab: '👤',
+          const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+            FeedTab: focused ? 'home' : 'home-outline',
+            SearchTab: focused ? 'search' : 'search-outline',
+            ReelsTab: focused ? 'videocam' : 'videocam-outline',
+            CommunityTab: focused ? 'people' : 'people-outline',
+            ProfileTab: focused ? 'person' : 'person-outline',
           };
-          return <TabIcon label={icons[route.name] || '•'} color={color} active={focused} />;
+          return <TabBarIcon iconName={icons[route.name] || 'help-outline'} color={color} />;
         },
       })}
     >

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../../constants/theme';
 
 export default function VoiceChannelScreen({ route, navigation }: any) {
@@ -66,7 +67,7 @@ export default function VoiceChannelScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backBtn}>Geri</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>🎤 {channel.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="microphone-outline" size={20} color={colors.text} /><Text style={styles.title}> {channel.name}</Text></View>
         <TouchableOpacity onPress={() => navigation.navigate('ChannelSettings', { channel, community })}>
           <Text style={styles.settingsBtn}>Ayarlar</Text>
         </TouchableOpacity>
@@ -74,12 +75,12 @@ export default function VoiceChannelScreen({ route, navigation }: any) {
 
       <View style={styles.voiceArea}>
         <View style={styles.voiceIcon}>
-          <Text style={styles.voiceEmoji}>🎤</Text>
+          <Ionicons name="microphone-outline" size={36} color={colors.text} />
         </View>
         <Text style={styles.voiceTitle}>Sesli otaq</Text>
         <Text style={styles.voiceDesc}>
           {participants.length} istifadeci bagli
-          {screenSharing ? ' - 📺 Ekran paylasilir' : ''}
+          {screenSharing ? ' - Ekran paylasilir' : ''}
         </Text>
 
         <FlatList
@@ -91,7 +92,7 @@ export default function VoiceChannelScreen({ route, navigation }: any) {
                 <Text style={styles.avatarLetter}>{(item.profile?.full_name || '?')[0]}</Text>
               </View>
               <Text style={styles.participantName}>{item.profile?.full_name}</Text>
-              <Text style={styles.muteIcon}>{item.is_muted ? '🔇' : '🎙️'}</Text>
+              <Ionicons name={item.is_muted ? 'volume-mute-outline' : 'microphone'} size={20} color={colors.textMuted} />
             </View>
           )}
           contentContainerStyle={styles.participantList}
@@ -102,15 +103,15 @@ export default function VoiceChannelScreen({ route, navigation }: any) {
       {joined ? (
         <View style={styles.controls}>
           <TouchableOpacity onPress={toggleMute} style={[styles.controlBtn, muted && styles.controlActive]}>
-            <Text style={styles.controlIcon}>{muted ? '🔇' : '🎙️'}</Text>
+            <Ionicons name={muted ? 'volume-mute-outline' : 'microphone'} size={28} color={colors.text} />
             <Text style={styles.controlLabel}>{muted ? 'Sesi ac' : 'Sesi bagla'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={toggleScreenShare} style={[styles.controlBtn, screenSharing && styles.controlActive]}>
-            <Text style={styles.controlIcon}>📺</Text>
+            <Ionicons name="tv-outline" size={28} color={colors.text} />
             <Text style={styles.controlLabel}>{screenSharing ? 'Paylasimi dayandir' : 'Ekran paylas'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={leaveVoice} style={[styles.controlBtn, styles.leaveBtn]}>
-            <Text style={styles.controlIcon}>📞</Text>
+            <Ionicons name="call-outline" size={28} color={colors.text} />
             <Text style={styles.controlLabel}>Ayril</Text>
           </TouchableOpacity>
         </View>

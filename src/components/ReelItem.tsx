@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'rea
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../constants/theme';
 import type { Reel } from '../types';
 
@@ -62,7 +63,7 @@ export default function ReelItem({ reel, isActive }: Props) {
 
         <View style={styles.actions}>
           <TouchableOpacity onPress={toggleLike} style={styles.actionBtn}>
-            <Text style={styles.actionIcon}>{liked ? '❤️' : '🤍'}</Text>
+            <Ionicons name={liked ? 'heart' : 'heart-outline'} size={28} color="#FFFFFF" />
             <Text style={styles.actionText}>{likesCount}</Text>
           </TouchableOpacity>
         </View>

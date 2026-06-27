@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, type KeyboardTypeOptions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../constants/theme';
 
 type Props = {
@@ -32,7 +33,7 @@ export default function FormInput({
         />
         {secureTextEntry && (
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-            <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+            <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>

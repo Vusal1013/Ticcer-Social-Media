@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../constants/theme';
 import type { NotificationPreferences } from '../../types';
 
@@ -40,11 +41,11 @@ export default function SettingsScreen({ navigation }: any) {
   }
 
   const notifItems = [
-    { key: 'likes' as keyof NotificationPreferences, icon: '❤️', label: 'Bəyənmələr' },
-    { key: 'comments' as keyof NotificationPreferences, icon: '💬', label: 'Şərhlər' },
-    { key: 'follows' as keyof NotificationPreferences, icon: '👥', label: 'İzləmələr' },
-    { key: 'mentions' as keyof NotificationPreferences, icon: '📢', label: 'Mentionlar' },
-    { key: 'messages' as keyof NotificationPreferences, icon: '✉️', label: 'Mesajlar' },
+    { key: 'likes' as keyof NotificationPreferences, icon: 'heart', label: 'Bəyənmələr' },
+    { key: 'comments' as keyof NotificationPreferences, icon: 'chatbubble-outline', label: 'Şərhlər' },
+    { key: 'follows' as keyof NotificationPreferences, icon: 'people-outline', label: 'İzləmələr' },
+    { key: 'mentions' as keyof NotificationPreferences, icon: 'megaphone-outline', label: 'Mentionlar' },
+    { key: 'messages' as keyof NotificationPreferences, icon: 'mail-outline', label: 'Mesajlar' },
   ];
 
   return (
@@ -61,7 +62,7 @@ export default function SettingsScreen({ navigation }: any) {
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Görünüş</Text>
 
         <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={toggleTheme}>
-          <Text style={styles.rowIcon}>{mode === 'dark' ? '🌙' : '☀️'}</Text>
+          <Ionicons name={mode === 'dark' ? 'moon-outline' : 'sunny-outline'} size={20} color={colors.text} style={{ marginRight: 12 }} />
           <Text style={[styles.rowText, { color: colors.text }]}>Tema</Text>
           <Text style={[styles.rowValue, { color: colors.textMuted }]}>
             {mode === 'dark' ? 'Qaranlıq' : 'İşıqlı'}
@@ -72,7 +73,7 @@ export default function SettingsScreen({ navigation }: any) {
 
         {notifItems.map((item) => (
           <View key={item.key} style={[styles.row, { borderBottomColor: colors.border }]}>
-            <Text style={styles.rowIcon}>{item.icon}</Text>
+            <Ionicons name={item.icon} size={20} color={colors.text} style={{ marginRight: 12 }} />
             <Text style={[styles.rowText, { color: colors.text }]}>{item.label}</Text>
             <Switch
               value={prefs?.[item.key] ?? true}
@@ -86,12 +87,12 @@ export default function SettingsScreen({ navigation }: any) {
         <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 24 }]}>Hesab</Text>
 
         <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('EditProfile')}>
-          <Text style={styles.rowIcon}>✏️</Text>
+          <Ionicons name="create-outline" size={20} color={colors.text} style={{ marginRight: 12 }} />
           <Text style={[styles.rowText, { color: colors.text }]}>Profili düzəlt</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={handleLogout}>
-          <Text style={styles.rowIcon}>🚪</Text>
+          <Ionicons name="log-out-outline" size={20} color={colors.error} style={{ marginRight: 12 }} />
           <Text style={[styles.rowText, { color: colors.error }]}>Çıxış et</Text>
         </TouchableOpacity>
       </ScrollView>

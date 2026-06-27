@@ -4,6 +4,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { useEventListener } from 'expo';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -122,7 +123,7 @@ export default function StoryViewer({ stories, initialIndex = 0, onClose }: Prop
       </TouchableOpacity>
 
       <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-        <Text style={styles.closeText}>✕</Text>
+        <Ionicons name="close-outline" size={18} color={colors.white} />
       </TouchableOpacity>
     </View>
   );

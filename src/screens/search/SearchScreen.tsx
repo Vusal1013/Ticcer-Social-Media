@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../constants/theme';
 import type { Profile } from '../../types';
 
@@ -99,7 +100,7 @@ export default function SearchScreen({ navigation, route }: any) {
       </View>
 
       <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.searchIcon, { color: colors.textMuted }]}>🔍</Text>
+        <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
         <TextInput
           style={[styles.input, { color: colors.text }]}
           placeholder="İstifadəçi, #hashtag və ya community axtar..."
@@ -111,7 +112,7 @@ export default function SearchScreen({ navigation, route }: any) {
         />
         {query ? (
           <TouchableOpacity onPress={() => setQuery('')}>
-            <Text style={[styles.clearBtn, { color: colors.textMuted }]}>✕</Text>
+            <Ionicons name="close-outline" size={16} color={colors.textMuted} />
           </TouchableOpacity>
         ) : null}
       </View>

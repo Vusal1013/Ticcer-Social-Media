@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Modal, StyleSheet, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, FlatList, TouchableOpacity, Modal, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
@@ -9,7 +10,7 @@ import PostCard from '../../components/PostCard';
 import StoryPreview from '../../components/StoryPreview';
 import StoryViewer from '../../components/StoryViewer';
 import { fonts } from '../../constants/theme';
-import type { Post, Profile } from '../../types';
+import type { Post, AppNotification } from '../../types';
 
 export default function FeedScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -19,7 +20,28 @@ export default function FeedScreen({ navigation }: any) {
   const [stories, setStories] = useState<any[]>([]);
   const [storyIndex, setStoryIndex] = useState(0);
   const [storyVisible, setStoryVisible] = useState(false);
-  const [suggestedUsers, setSuggestedUsers] = useState<Profile[]>([]);
+  const [toast, setToast] = useState<AppNotification | null>(null);
+  const toastAnim = useRef(new Animated.Value(-100)).current;
+
+  function showToast(notification: AppNotification) {
+    setToast(notification);
+    Animated.sequence([
+      Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.delay(3000),
+      Animated.timing(toastAnim, { toValue: -100, duration: 300, useNativeDriver: true }),
+    ]).start(() => setToast(null));
+  }
+
+  function getToastIcon(type: string) {
+    switch (type) {
+      case 'like': return 'heart';
+      case 'comment': return 'chatbubble-outline';
+      case 'follow': return 'people-outline';
+      case 'mention': return 'megaphone-outline';
+      case 'message': return 'mail-outline';
+      default: return 'notifications-outline';
+    }
+  }
 
   async function fetchFollowingIds(): Promise<string[]> {
     if (!user) return [];
@@ -61,29 +83,8 @@ export default function FeedScreen({ navigation }: any) {
     setLoading(false);
   }
 
-  async function fetchSuggestedUsers() {
-    if (!user) return;
-    const followingIds = await fetchFollowingIds();
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .not('id', 'eq', user.id)
-      .limit(10);
-
-    if (data) {
-      setSuggestedUsers(data.filter((p) => !followingIds.includes(p.id)));
-    }
-  }
-
-  async function handleFollow(targetId: string) {
-    await supabase.from('follows').insert({ follower_id: user!.id, following_id: targetId });
-    setSuggestedUsers((prev) => prev.filter((p) => p.id !== targetId));
-    fetchPosts();
-  }
-
   useEffect(() => {
     fetchPosts();
-    fetchSuggestedUsers();
     const channel = supabase.channel('feed-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => fetchPosts())
       .subscribe((status) => {
@@ -91,6 +92,16 @@ export default function FeedScreen({ navigation }: any) {
       });
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const notifChannel = supabase.channel('notifications-toast')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => { if (payload.new) showToast(payload.new as AppNotification); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(notifChannel); };
+  }, [user]);
 
   useFocusEffect(useCallback(() => {
     fetchPosts();
@@ -103,19 +114,30 @@ export default function FeedScreen({ navigation }: any) {
   return (
     <LinearGradient colors={[colors.background, colors.surface]} style={styles.container}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.navigate('CreateStory')} style={styles.headerBtn}>
+          <Ionicons name="camera-outline" size={24} color={colors.text} />
+        </TouchableOpacity>
         <Text style={[styles.logo, { color: colors.primary }]}>Ticcer</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={[styles.bellBtn, { backgroundColor: colors.primary + '20' }]}>
-            <Text style={styles.bellIcon}>🔔</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('CreateStory')} style={[styles.storyBtn, { backgroundColor: colors.primary + '30' }]}>
-            <Text style={[styles.storyBtnText, { color: colors.primary }]}>Story</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('CreatePost')} style={[styles.createBtn, { backgroundColor: colors.primary }]}>
-            <Text style={styles.createText}>+</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('ConversationsList')} style={styles.headerBtn}>
+          <Ionicons name="paper-plane-outline" size={24} color={colors.text} />
+        </TouchableOpacity>
       </View>
+
+      {toast && (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Notifications')}
+          style={{ position: 'absolute', top: 100, left: 16, right: 16, zIndex: 100 }}
+        >
+          <Animated.View style={[styles.toast, { backgroundColor: colors.surface, borderColor: colors.border, transform: [{ translateY: toastAnim }] }]}>
+            <Ionicons name={getToastIcon(toast.type)} size={20} color={colors.text} style={{ marginRight: 10 }} />
+            <View style={styles.toastContent}>
+              <Text style={[styles.toastTitle, { color: colors.text }]} numberOfLines={1}>{toast.title}</Text>
+              {toast.body && <Text style={[styles.toastBody, { color: colors.textSecondary }]} numberOfLines={1}>{toast.body}</Text>}
+            </View>
+          </Animated.View>
+        </TouchableOpacity>
+      )}
 
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
@@ -135,35 +157,6 @@ export default function FeedScreen({ navigation }: any) {
                   setStoryVisible(true);
                 }}
               />
-              {suggestedUsers.length > 0 && (
-                <View style={[styles.suggestedCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.suggestedTitle, { color: colors.text }]}>Tövsiyə olunanlar</Text>
-                  <FlatList
-                    horizontal
-                    data={suggestedUsers}
-                    keyExtractor={(item) => item.id}
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={({ item }) => (
-                      <View style={styles.suggestedUser}>
-                        <View style={[styles.suggestedAvatar, { backgroundColor: colors.primary }]}>
-                          <Text style={styles.suggestedAvatarText}>
-                            {item.full_name.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                        <Text style={[styles.suggestedName, { color: colors.text }]} numberOfLines={1}>
-                          {item.username}
-                        </Text>
-                        <TouchableOpacity
-                          style={[styles.followBtn, { backgroundColor: colors.primary }]}
-                          onPress={() => handleFollow(item.id)}
-                        >
-                          <Text style={styles.followBtnText}>+ İzlə</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  />
-                </View>
-              )}
             </View>
           }
           ListEmptyComponent={
@@ -173,6 +166,13 @@ export default function FeedScreen({ navigation }: any) {
           }
         />
       )}
+
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => navigation.navigate('CreatePost')}
+      >
+        <Ionicons name="create-outline" size={26} color="#FFFFFF" />
+      </TouchableOpacity>
 
       <Modal visible={storyVisible} animationType="fade" statusBarTranslucent>
         <StoryViewer stories={stories} initialIndex={storyIndex} onClose={() => setStoryVisible(false)} />
@@ -187,25 +187,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingTop: 60, paddingBottom: 12, borderBottomWidth: 1,
   },
+  headerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   logo: { fontSize: fonts.sizes.xl, fontWeight: fonts.weights.bold },
-  headerRight: { flexDirection: 'row', gap: 8 },
-  bellBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  bellIcon: { fontSize: 18 },
-  storyBtn: { borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14 },
-  storyBtnText: { fontSize: fonts.sizes.sm, fontWeight: fonts.weights.semibold },
-  createBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  createText: { color: '#FFFFFF', fontSize: 22, fontWeight: fonts.weights.bold, marginTop: -2 },
-  list: { paddingBottom: 20 },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: fonts.sizes.md },
-  suggestedCard: {
-    marginHorizontal: 16, marginTop: 12, marginBottom: 8, padding: 12,
-    borderRadius: 16, borderWidth: 1,
+  toast: {
+    flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12,
+    borderWidth: 1, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15, shadowRadius: 6,
   },
-  suggestedTitle: { fontSize: fonts.sizes.sm, fontWeight: fonts.weights.semibold, marginBottom: 10 },
-  suggestedUser: { alignItems: 'center', marginRight: 16, width: 80 },
-  suggestedAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  suggestedAvatarText: { color: '#FFFFFF', fontSize: 18, fontWeight: fonts.weights.bold },
-  suggestedName: { fontSize: fonts.sizes.xs, marginTop: 4, textAlign: 'center' },
-  followBtn: { borderRadius: 12, paddingVertical: 4, paddingHorizontal: 12, marginTop: 6 },
-  followBtnText: { color: '#FFFFFF', fontSize: fonts.sizes.xs, fontWeight: fonts.weights.semibold },
+  toastIcon: { fontSize: 20, marginRight: 10 },
+  toastContent: { flex: 1 },
+  toastTitle: { fontSize: fonts.sizes.sm, fontWeight: fonts.weights.semibold },
+  toastBody: { fontSize: fonts.sizes.xs, marginTop: 2 },
+  list: { paddingBottom: 80 },
+  empty: { textAlign: 'center', marginTop: 60, fontSize: fonts.sizes.md },
+  fab: {
+    position: 'absolute', bottom: 80, right: 20, width: 56, height: 56, borderRadius: 28,
+    alignItems: 'center', justifyContent: 'center', elevation: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6,
+  },
 });

@@ -418,3 +418,5 @@ Firebase Dynamic Links və ya [Branch.io](https://branch.io) istifadə etmək:
 | 10 | **Bugfix: SQL policy** — `notification_preferences`-da duplicate policy adı düzəldi |
 | 11 | **Bugfix: post_comments.parent_id** — `ALTER TABLE ADD COLUMN IF NOT EXISTS` əlavə edildi |
 | 12 | **Bugfix: ProfileScreen refresh** — `useFocusEffect` + mediaTab dəyişəndə saved posts yenilənir |
+| 13 | **Feed yenidən dizayn** — Logo ortalandı, FAB (sağ altda +), WhatsApp stil bildiriş toast-ı, tövsiyələr götürüldü, story📸 sol, message💬 sağ |
+| 14 | **Ionicon keçid** — Bütün emoji ikonlar `@expo/vector-icons` (Ionicons) ilə əvəz olundu (16 fayl): header, tab bar, FAB, PostCard, PostDetail, Profile, Settings, Notifications, Search, VoiceChannel, Camera, Community, StoryViewer, VerifiedBadge, CreatePost, CreateReel, ReelItem, FormInput |

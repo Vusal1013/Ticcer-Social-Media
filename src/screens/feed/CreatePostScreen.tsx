@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../../constants/theme';
 
 const HASHTAG_RE = /#(\w+)/g;
@@ -140,13 +141,13 @@ export default function CreatePostScreen({ navigation }: any) {
         <View style={styles.imagePreview}>
           <Image source={{ uri: image }} style={styles.image} />
           <TouchableOpacity onPress={() => setImage(null)} style={styles.removeImage}>
-            <Text style={styles.removeImageText}>✕</Text>
+            <Ionicons name="close-outline" size={16} color={colors.white} />
           </TouchableOpacity>
         </View>
       )}
 
       <TouchableOpacity onPress={pickImage} style={styles.addImageBtn}>
-        <Text style={styles.addImageText}>📷 Şəkil əlavə et</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="camera-outline" size={16} color={colors.primary} /><Text style={styles.addImageText}> Şəkil əlavə et</Text></View>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );

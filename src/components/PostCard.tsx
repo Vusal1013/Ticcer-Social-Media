@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/theme';
 import VerifiedBadge from './VerifiedBadge';
+import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../constants/theme';
 import type { Post } from '../types';
 
@@ -144,29 +145,25 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
 
       <View style={styles.actions}>
         <TouchableOpacity onPress={toggleLike} style={styles.actionBtn}>
-          <Text style={[styles.actionIcon, liked && { color: colors.error }]}>
-            {liked ? '❤️' : '🤍'}
-          </Text>
+          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={16} color={liked ? colors.error : colors.textSecondary} />
           <Text style={[styles.actionCount, { color: colors.textSecondary }, liked && { color: colors.error }]}>{likesCount}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={onPress} style={styles.actionBtn}>
-          <Text style={styles.actionIcon}>💬</Text>
+          <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
           <Text style={[styles.actionCount, { color: colors.textSecondary }]}>{post.comments_count ?? 0}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleRepost} style={styles.actionBtn}>
-          <Text style={styles.actionIcon}>🔄</Text>
+          <Ionicons name="repeat-outline" size={16} color={colors.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity onPress={toggleSave} style={styles.actionBtn}>
-          <Text style={[styles.actionIcon, saved && { color: '#FFD700' }]}>
-            {saved ? '🔖' : '🏷️'}
-          </Text>
+          <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={16} color={saved ? '#FFD700' : colors.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setShowShare(true)} style={styles.actionBtn}>
-          <Text style={styles.actionIcon}>📤</Text>
+          <Ionicons name="share-outline" size={16} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -179,7 +176,7 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
 
             <TouchableOpacity style={styles.sheetOption} onPress={handleShareToFriends}>
               <View style={[styles.sheetIcon, { backgroundColor: colors.primary + '20' }]}>
-                <Text style={styles.sheetEmoji}>💬</Text>
+                <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
               </View>
               <View style={styles.sheetOptionText}>
                 <Text style={[styles.sheetOptionTitle, { color: colors.text }]}>Dostlara göndər</Text>
@@ -191,7 +188,7 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
 
             <TouchableOpacity style={styles.sheetOption} onPress={handleShareToApps}>
               <View style={[styles.sheetIcon, { backgroundColor: colors.secondary + '20' }]}>
-                <Text style={styles.sheetEmoji}>📤</Text>
+                <Ionicons name="share-outline" size={22} color={colors.secondary} />
               </View>
               <View style={styles.sheetOptionText}>
                 <Text style={[styles.sheetOptionTitle, { color: colors.text }]}>Digər proqramlara göndər</Text>

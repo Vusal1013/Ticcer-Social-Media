@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../../constants/theme';
 
 export default function CreateReelScreen({ navigation }: any) {
@@ -67,10 +68,10 @@ export default function CreateReelScreen({ navigation }: any) {
       <View style={styles.content}>
         <TouchableOpacity onPress={pickVideo} style={styles.videoPicker}>
           {video ? (
-            <Text style={styles.selectedText}>✓ Video seçildi</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="checkmark-outline" size={16} color={colors.success} /><Text style={[styles.selectedText, { marginLeft: 6 }]}> Video seçildi</Text></View>
           ) : (
             <>
-              <Text style={styles.pickerIcon}>🎬</Text>
+              <Ionicons name="videocam-outline" size={40} color={colors.textMuted} />
               <Text style={styles.pickerText}>Video seç</Text>
             </>
           )}

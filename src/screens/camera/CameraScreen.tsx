@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { FILTERS, STICKERS } from '../../constants/filters';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -205,7 +206,7 @@ export default function CameraScreen({ navigation }: any) {
           </View>
           <View style={styles.galleryContent}>
             <TouchableOpacity onPress={pickFromGallery} style={styles.galleryPicker}>
-              <Text style={styles.galleryPickerIcon}>🖼️</Text>
+              <Ionicons name="image-outline" size={60} color={colors.textMuted} />
               <Text style={styles.galleryPickerText}>Sekil sec</Text>
             </TouchableOpacity>
           </View>
