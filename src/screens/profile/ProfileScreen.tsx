@@ -6,12 +6,17 @@ import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../lib/theme';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import { fonts } from '../../constants/theme';
+import type { Profile } from '../../types';
 
 type MediaTab = 'posts' | 'reels';
 
-export default function ProfileScreen({ navigation }: any) {
-  const { profile, user } = useAuth();
+export default function ProfileScreen({ navigation, route }: any) {
+  const { profile: myProfile, user } = useAuth();
   const { colors } = useTheme();
+  const paramUserId = route?.params?.userId;
+  const isOwnProfile = !paramUserId || paramUserId === user?.id;
+
+  const [profileUser, setProfileUser] = useState<Profile | null>(isOwnProfile ? myProfile : null);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [postsCount, setPostsCount] = useState(0);
@@ -19,55 +24,75 @@ export default function ProfileScreen({ navigation }: any) {
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [userReels, setUserReels] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', user.id)
-      .then(({ count }) => setFollowersCount(count ?? 0));
-    supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', user.id)
-      .then(({ count }) => setFollowingCount(count ?? 0));
-    supabase.from('posts').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
-      .then(({ count }) => setPostsCount(count ?? 0));
-    supabase.from('posts').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-      .then(({ data }) => setUserPosts(data || []));
-    supabase.from('reels').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-      .then(({ data }) => setUserReels(data || []));
-  }, [user]);
+  const targetId = paramUserId || user?.id;
 
-  const imagePosts = userPosts.filter((p) => p.image_url);
-  const videoReels = userReels.filter((r) => r.video_url);
+  useEffect(() => {
+    if (!targetId) return;
+
+    async function loadProfile() {
+      if (paramUserId && paramUserId !== user?.id) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', paramUserId).single();
+        setProfileUser(data);
+      }
+
+      supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', targetId)
+        .then(({ count }) => setFollowersCount(count ?? 0));
+      supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', targetId)
+        .then(({ count }) => setFollowingCount(count ?? 0));
+      supabase.from('posts').select('id', { count: 'exact', head: true }).eq('user_id', targetId)
+        .then(({ count }) => setPostsCount(count ?? 0));
+      supabase.from('posts').select('*, profile:profiles(*)').eq('user_id', targetId).order('created_at', { ascending: false })
+        .then(({ data }) => setUserPosts(data || []));
+      supabase.from('reels').select('*').eq('user_id', targetId).order('created_at', { ascending: false })
+        .then(({ data }) => setUserReels(data || []));
+    }
+    loadProfile();
+  }, [targetId, user, paramUserId]);
+
+  const displayProfile = isOwnProfile ? myProfile : profileUser;
+  const imagePosts = userPosts.filter((p: any) => p.image_url);
+  const videoReels = userReels.filter((r: any) => r.video_url);
 
   return (
     <LinearGradient colors={[colors.background, colors.surface]} style={styles.container}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        {profile?.role === 'admin' && (
-          <TouchableOpacity onPress={() => navigation.navigate('AdminPanel')}>
-            <Text style={[styles.adminText, { color: colors.warning }]}>Admin Panel</Text>
+      {isOwnProfile && (
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          {myProfile?.role === 'admin' && (
+            <TouchableOpacity onPress={() => navigation.navigate('AdminPanel')}>
+              <Text style={[styles.adminText, { color: colors.warning }]}>Admin Panel</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.settingsBtn, { borderColor: colors.border }]}>
+            <Text style={{ fontSize: 20 }}>⚙️</Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.settingsBtn, { borderColor: colors.border }]}>
-          <Text style={{ fontSize: 20 }}>⚙️</Text>
+        </View>
+      )}
+
+      {!isOwnProfile && (
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={[styles.backText, { color: colors.primary }]}>← Geri</Text>
         </TouchableOpacity>
-      </View>
+      )}
 
       <View style={styles.profileSection}>
         <View style={styles.avatarContainer}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          {displayProfile?.avatar_url ? (
+            <Image source={{ uri: displayProfile.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
               <Text style={styles.avatarLetter}>
-                {(profile?.full_name || '?')[0].toUpperCase()}
+                {(displayProfile?.full_name || '?')[0].toUpperCase()}
               </Text>
             </View>
           )}
         </View>
 
         <View style={styles.nameRow}>
-          <Text style={[styles.fullName, { color: colors.text }]}>{profile?.full_name || 'Adsız'}</Text>
-          {profile?.verified && <VerifiedBadge size={18} />}
+          <Text style={[styles.fullName, { color: colors.text }]}>{displayProfile?.full_name || 'Adsız'}</Text>
+          {displayProfile?.verified && <VerifiedBadge size={18} />}
         </View>
-        <Text style={[styles.username, { color: colors.textMuted }]}>@{profile?.username || 'username'}</Text>
-        {profile?.bio ? <Text style={[styles.bio, { color: colors.textSecondary }]}>{profile.bio}</Text> : null}
+        <Text style={[styles.username, { color: colors.textMuted }]}>@{displayProfile?.username || 'username'}</Text>
+        {displayProfile?.bio ? <Text style={[styles.bio, { color: colors.textSecondary }]}>{displayProfile.bio}</Text> : null}
 
         <View style={[styles.statsRow, { borderColor: colors.border }]}>
           <View style={styles.stat}>
@@ -109,10 +134,10 @@ export default function ProfileScreen({ navigation }: any) {
             numColumns={3}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.grid}
-            renderItem={({ item }) => (
+            renderItem={({ item }: { item: any }) => (
               <TouchableOpacity
                 style={[styles.gridItem, { backgroundColor: colors.card }]}
-                onPress={() => navigation.navigate('FeedTab', { screen: 'PostDetail', params: { post: item } })}
+                onPress={() => navigation.navigate('FeedTab', { screen: 'PostDetail', params: { post: item, source: 'ProfileTab' } })}
               >
                 <Image source={{ uri: item.image_url }} style={styles.gridImage} />
               </TouchableOpacity>
@@ -130,7 +155,7 @@ export default function ProfileScreen({ navigation }: any) {
             numColumns={3}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.grid}
-            renderItem={({ item }) => (
+            renderItem={({ item }: { item: any }) => (
               <TouchableOpacity style={[styles.gridItem, { backgroundColor: colors.card }]}>
                 <Image source={{ uri: item.thumbnail_url || item.video_url }} style={styles.gridImage} />
                 <Text style={styles.videoOverlay}>▶️</Text>
@@ -155,6 +180,8 @@ const styles = StyleSheet.create({
   },
   adminText: { fontSize: fonts.sizes.sm, fontWeight: fonts.weights.semibold },
   settingsBtn: { borderRadius: 20, borderWidth: 1, padding: 8 },
+  backBtn: { padding: 16, paddingTop: 60 },
+  backText: { fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
   profileSection: { alignItems: 'center', padding: 24 },
   avatarContainer: { marginBottom: 8 },
   avatar: { width: 90, height: 90, borderRadius: 45 },

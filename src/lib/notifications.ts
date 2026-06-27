@@ -24,13 +24,14 @@ export async function setupNotifications(userId: string) {
   }
   if (finalStatus !== 'granted') return;
 
-  const token = await Notifications.getExpoPushTokenAsync({
-    projectId: undefined,
-  });
-
-  await supabase.from('profiles').update({
-    expo_push_token: token.data ?? null,
-  }).eq('id', userId);
+  try {
+    const token = await Notifications.getExpoPushTokenAsync();
+    await supabase.from('profiles').update({
+      expo_push_token: token.data ?? null,
+    }).eq('id', userId);
+  } catch (e) {
+    console.warn('Push token alinamadi:', e);
+  }
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {

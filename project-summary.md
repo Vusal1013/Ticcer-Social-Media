@@ -27,7 +27,7 @@ sosial-media-app/
     │   ├── AuthNavigator.tsx        # Login/Register stack
     │   └── AppNavigator.tsx         # Ana tab navigator (7 tab)
     ├── components/
-    │   ├── PostCard.tsx             # Feed post karti (like/comment/repost)
+    │   ├── PostCard.tsx             # Feed post karti (like/comment/repost/share/hashtag/mention)
     │   ├── ReelItem.tsx             # Reels video overlay
     │   ├── StoryPreview.tsx         # Feed'de story halkalari
     │   ├── StoryViewer.tsx          # Story izleme (modal, 5s, progress bar)
@@ -39,8 +39,8 @@ sosial-media-app/
         │   └── RegisterScreen.tsx
         ├── feed/
         │   ├── FeedScreen.tsx       # Realtime post akisi (FlatList + pull refresh)
-        │   ├── CreatePostScreen.tsx # Post yarat (text + image)
-        │   └── PostDetailScreen.tsx # Post detay + commentler
+        │   ├── CreatePostScreen.tsx # Post yarat (text + image + hashtag/mention parse)
+        │   └── PostDetailScreen.tsx # Post detay + nested commentler + reply
         ├── reels/
         │   ├── ReelsScreen.tsx      # Dikey kaydirmali reel (pagingEnabled)
         │   └── CreateReelScreen.tsx # Reel yarat (video picker)
@@ -50,7 +50,7 @@ sosial-media-app/
         ├── camera/
         │   └── CameraScreen.tsx     # Snapchat filterli kamera (8 filtre + 12 sticker)
         ├── chat/
-        │   ├── ConversationsListScreen.tsx # Mesajlasma listesi
+        │   ├── ConversationsListScreen.tsx # Mesajlasma listesi + post paylasma
         │   ├── ChatScreen.tsx       # Realtime sohbet
         │   └── NewConversationScreen.tsx   # Yeni mesaj (user search)
         ├── community/
@@ -60,6 +60,8 @@ sosial-media-app/
         │   ├── ChannelChatScreen.tsx       # Kanal sohbeti (filter + slow mode)
         │   ├── ChannelSettingsScreen.tsx   # Ban, yasakli kelime, slow mode
         │   └── VoiceChannelScreen.tsx      # Sesli oda UI (mute, screen share)
+        ├── search/
+        │   └── SearchScreen.tsx     # User + hashtag axtarisi
         ├── profile/
         │   ├── ProfileScreen.tsx    # Profil (posts, verifications)
         │   └── EditProfileScreen.tsx # Profil duzenle
@@ -82,9 +84,9 @@ sosial-media-app/
 
 ### Phase 2 — Post Feed ✅
 - [x] FeedScreen (FlatList, realtime, pull-refresh, story preview header)
-- [x] CreatePostScreen (text + image picker + compression)
-- [x] PostDetailScreen (comments, like, realtime)
-- [x] PostCard (like ❤️, comment 💬, repost 🔄)
+- [x] CreatePostScreen (text + image picker + compression + hashtag/mention parse)
+- [x] PostDetailScreen (nested comments, reply, like, realtime)
+- [x] PostCard (like ❤️, comment 💬, repost 🔄, share 📤, share via message ✉️)
 - [x] Image upload → `post-images` bucket (800px, 70%)
 
 ### Phase 3 — Reels ✅
@@ -99,7 +101,7 @@ sosial-media-app/
 - [x] Yalniz 24 saat erzinde olan storyler gosterilir
 
 ### Phase 5 — Messaging ✅
-- [x] ConversationsListScreen (son mesaj preview, realtime)
+- [x] ConversationsListScreen (son mesaj preview, realtime, post paylasma)
 - [x] ChatScreen (realtime via Supabase Realtime channel)
 - [x] NewConversationScreen (user search → direct chat)
 
@@ -128,6 +130,26 @@ sosial-media-app/
 - [x] Kamera/galeri izinleri (iOS infoPlist)
 - [x] Kamera tab navigasiyaya elave edildi
 
+### Phase 9 — Reply to Comments (Nested) ✅
+- [x] `post_comments` tablosuna `parent_id` əlavə edildi
+- [x] PostDetailScreen-da ierarxik comment gostərimi (replies indentation)
+- [x] Her comment-de "Cavabla" duyməsi
+- [x] Cavab yazarkən "kime cavab verdiyini" gosteren indicator
+
+### Phase 10 — Share Posts ✅
+- [x] Digər aplikasiyalara paylasma (React Native Share API, 📤)
+- [x] Mesaj yolu ilə paylasma (✉️ → conversation seç → post linki mesaj kimi gonderilir)
+
+### Phase 11 — Hashtag / Mention ✅
+- [x] `hashtags` tablosu (tag unikal)
+- [x] `post_hashtags` junction tablosu
+- [x] Post yaradılarkən hashtag-lərin parse edilib bazaya yazılması
+- [x] `mentions` tablosu (post_id, user_id)
+- [x] Post yaradılarkən mention-ların parse edilib bazaya yazılması
+- [x] Hashtag-lərə klik -> SearchScreen-de hemin hashtag postlari gosterilir
+- [x] Mention-lara klik -> SearchScreen-de hemin istifadeci axtarisi
+- [x] SearchScreen-de "Hashtag" tab-i (post neticeleri ile)
+
 ---
 
 ## 📊 Veritabanı (Supabase)
@@ -139,7 +161,11 @@ sosial-media-app/
 | `profiles` | id, username, full_name, avatar_url, bio, verified, role, expo_push_token, created_at |
 | `posts` | user_id, content, image_url, created_at, updated_at |
 | `post_likes` | user_id, post_id (unique) |
-| `comments` | user_id, post_id, content, created_at |
+| `post_comments` | user_id, post_id, **parent_id (nullable)**, content, created_at |
+| `hashtags` | tag (unikal) |
+| `post_hashtags` | post_id, hashtag_id (unique) |
+| `mentions` | post_id, user_id (unique) |
+| `reposts` | user_id, post_id (unique) |
 | `reels` | user_id, video_url, description, likes_count, created_at |
 | `reel_likes` | user_id, reel_id (unique) |
 | `stories` | user_id, media_url, type, expires_at, created_at |
@@ -168,7 +194,10 @@ sosial-media-app/
 - **profiles**: Public read, self update, admin manage
 - **posts**: Public read, auth insert, self update/delete
 - **post_likes**: Public read, auth insert/delete (self)
-- **comments**: Public read, auth insert, self delete
+- **post_comments**: Public read, auth insert, self delete
+- **hashtags**: Public read, anyone insert
+- **post_hashtags**: Public read, post owner insert
+- **mentions**: Public read, post owner insert
 - **reels/reel_likes/stories/story_views**: Public read, auth insert, self delete
 - **conversations/participants/messages**: Participant only
 - **communities/members/channels/messages**: Member only
@@ -224,6 +253,8 @@ nvm use 20
 | DROP POLICY IF EXISTS | SQL idempotent təkrar işlətmək üçün |
 | Verified badge (manual) | Admin tərəfindən təsdiq |
 | Auth trigger → auto profile | Hər yeni istifadəçi üçün profil yaranır |
+| Nested comments (parent_id) | Self-referencing foreign key, flat query + client-side grouping |
+| Hashtag/mention parse on create | Post yaradilan anda parse edilib ayrı tablolara yazilir |
 
 ---
 
@@ -232,9 +263,6 @@ nvm use 20
 ### Yaxın
 - [ ] Camera — real-time face detection / face filters (react-native-vision-camera + MLKit)
 - [ ] Camera — video kayıt
-- [ ] Reply to comments (nested)
-- [ ] Share posts
-- [ ] Hashtag / mention (etiketləmə)
 - [ ] Bildirim kanalları — push notification server-side (FCM via Supabase Edge Functions)
 
 ### Orta Vade
@@ -257,11 +285,37 @@ nvm use 20
 
 ---
 
+## 🔗 Link Sistemi (Daha sonra edilecek)
+
+Postlari digər proqramlara paylaşanda `https://ticcer.app/p/{post-id}` formatında link göndərilir. Bu linkin işləməsi üçün:
+
+### Tələb olunanlar
+
+1. **Veb səhifə (landing page)**
+   - `ticcer.app` domain-i alınmalı
+   - Veb server qurulmalı (Next.js, Vite, və s.)
+   - `/p/:id` route-u Supabase-dən post məlumatını çəkib göstərməli
+   - Open Graph (OG) meta teqləri olmalı (link paylaşılanda şəkil+başlıq görünsün)
+
+2. **Deep linking (app-i açmaq)**
+   - `Expo Linking` konfiqurasiyası (`app.json`-da `scheme`)
+   - Universal Links (iOS) / App Links (Android)
+   - Veb səhifədən app-ə yönləndirmə
+
+### Alternativ (asan yol)
+
+Firebase Dynamic Links və ya [Branch.io](https://branch.io) istifadə etmək:
+- Domain tələb etmir (firebase.page.link işləyir)
+- Həm veb səhifə, həm app-i açmağı avtomatik idarə edir
+- SDK ilə bir neçə dəqiqəyə qoşulur
+
+---
+
 ## ⚠️ Bilinen Problemler / Blockerlar
 
 1. **Node.js v18** — Expo SDK 56 uyumlu deyil, Node >=20.19.4 teleb olunur
 2. **Voice Channel audio** — UI hazirdir, amma canli ses ucun WebRTC (react-native-webrtc) elave edilmelidir
-3. **Push bildirimler** — `expo_push_token` kaydedilir, amma gondermek ucun server-side (Supabase Edge Function) yazilmalidir
+3. **Push bildirimler** — `expo_push_token` kaydedilir, amma gondermek ucun server-side (Supabase Edge Function) yazilmalidir; mention bildirimleri de bununla gonderilecek
 4. **Real face filters** — Hazirki renk filtresi + sticker cozumudur; gercek AR effektler ucun `react-native-vision-camera` + Frame Processor teleb olunur
 
 ---

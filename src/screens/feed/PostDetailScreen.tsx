@@ -1,21 +1,62 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity, Alert, StyleSheet,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Image, Share, Modal, Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
-import PostCard from '../../components/PostCard';
-import { colors, fonts } from '../../constants/theme';
+import { useTheme } from '../../lib/theme';
+import VerifiedBadge from '../../components/VerifiedBadge';
+import { fonts } from '../../constants/theme';
 import type { Post } from '../../types';
 
+type Comment = {
+  id: string;
+  user_id: string;
+  post_id: string;
+  parent_id: string | null;
+  content: string;
+  created_at: string;
+  profile?: any;
+  replies?: Comment[];
+};
+
 export default function PostDetailScreen({ route, navigation }: any) {
-  const { post: initialPost } = route.params;
+  const { post: initialPost, source } = route.params;
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [post, setPost] = useState<Post>(initialPost);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
+  const [replyTo, setReplyTo] = useState<Comment | null>(null);
+  const [liked, setLiked] = useState(initialPost.is_liked ?? false);
+  const [likesCount, setLikesCount] = useState(initialPost.likes_count ?? 0);
+  const [showShare, setShowShare] = useState(false);
+
+  async function fetchPost() {
+    const { data } = await supabase
+      .from('posts')
+      .select(`*, profile:profiles(*), likes:post_likes(count)`)
+      .eq('id', post.id)
+      .single();
+    if (data) {
+      const raw = data as any;
+      const likes_count = raw.likes?.[0]?.count ?? 0;
+      setPost((prev: Post) => ({ ...prev, ...raw, likes_count }));
+      setLikesCount(likes_count);
+
+      if (user) {
+        const { data: myLike } = await supabase
+          .from('post_likes')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('post_id', post.id)
+          .single();
+        setLiked(!!myLike);
+      }
+    }
+  }
 
   async function fetchComments() {
     const { data } = await supabase
@@ -23,61 +64,233 @@ export default function PostDetailScreen({ route, navigation }: any) {
       .select('*, profile:profiles(*)')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true });
-    if (data) setComments(data);
+    if (data) {
+      const grouped = data.reduce((acc: any[], c: Comment) => {
+        if (!c.parent_id) {
+          acc.push({ ...c, replies: [] });
+        }
+        return acc;
+      }, []);
+      const replyMap = new Map<string, Comment[]>();
+      for (const c of data) {
+        if (c.parent_id) {
+          if (!replyMap.has(c.parent_id)) replyMap.set(c.parent_id, []);
+          replyMap.get(c.parent_id)!.push(c);
+        }
+      }
+      for (const parent of grouped) {
+        parent.replies = replyMap.get(parent.id) || [];
+      }
+      setComments(grouped);
+    }
   }
 
-  useEffect(() => { fetchComments(); }, []);
+  useEffect(() => {
+    fetchPost();
+    fetchComments();
+  }, []);
+
+  async function toggleLike() {
+    if (!user) return;
+    if (liked) {
+      await supabase.from('post_likes').delete().eq('user_id', user.id).eq('post_id', post.id);
+      setLiked(false);
+      setLikesCount((prev: number) => Math.max(0, prev - 1));
+    } else {
+      await supabase.from('post_likes').insert({ user_id: user.id, post_id: post.id });
+      setLiked(true);
+      setLikesCount((prev: number) => prev + 1);
+    }
+  }
 
   async function handleComment() {
     if (!newComment.trim()) return;
     const { error } = await supabase.from('post_comments').insert({
       user_id: user!.id,
       post_id: post.id,
+      parent_id: replyTo?.id || null,
       content: newComment.trim(),
     });
     if (error) return Alert.alert('Xəta', error.message);
     setNewComment('');
+    setReplyTo(null);
+    fetchPost();
     fetchComments();
+  }
+
+  const timeAgo = new Date(post.created_at).toLocaleDateString('az-AZ', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+
+  function renderComment(comment: Comment, isReply: boolean = false) {
+    return (
+      <View key={comment.id} style={[styles.comment, { backgroundColor: colors.surface }, isReply && styles.replyComment]}>
+        <View style={[styles.commentAvatar, styles.commentAvatarPlaceholder, { backgroundColor: colors.primary }]}>
+          <Text style={styles.commentAvatarLetter}>{(comment.profile?.full_name || '?')[0]}</Text>
+        </View>
+        <View style={styles.commentBody}>
+          <Text style={[styles.commentName, { color: colors.text }]}>{comment.profile?.full_name}</Text>
+          <Text style={[styles.commentText, { color: colors.textSecondary }]}>{comment.content}</Text>
+          <TouchableOpacity onPress={() => setReplyTo(comment)}>
+            <Text style={[styles.replyBtn, { color: colors.primary }]}>Cavabla</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <LinearGradient colors={['#0F0F23', '#1A1A3E']} style={StyleSheet.absoluteFill} />
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-        <Text style={styles.backText}>← Geri</Text>
+      <TouchableOpacity
+        onPress={() => {
+          if (source === 'ProfileTab') navigation.navigate('ProfileTab', { screen: 'ProfileMain' });
+          else if (source === 'SearchTab') navigation.navigate('SearchTab', { screen: 'SearchMain' });
+          else navigation.goBack();
+        }}
+        style={styles.backBtn}
+      >
+        <Text style={[styles.backText, { color: colors.primary }]}>← Geri</Text>
       </TouchableOpacity>
 
       <FlatList
         data={comments}
         keyExtractor={item => item.id}
-        ListHeaderComponent={<PostCard post={post} onPress={() => {}} />}
+        ListHeaderComponent={
+          <View style={[styles.postCard, { backgroundColor: colors.card }]}>
+            <TouchableOpacity
+              style={styles.headerRow}
+              onPress={() => {
+                if (post.profile?.id) navigation.navigate('ProfileTab', { screen: 'ProfileMain', params: { userId: post.profile.id } });
+              }}
+              activeOpacity={0.7}
+            >
+              {post.profile?.avatar_url ? (
+                <Image source={{ uri: post.profile.avatar_url }} style={styles.postAvatar} />
+              ) : (
+                <View style={[styles.postAvatar, styles.postAvatarPlaceholder, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.postAvatarLetter, { color: colors.white }]}>{(post.profile?.full_name || '?')[0]}</Text>
+                </View>
+              )}
+              <View style={styles.headerInfo}>
+                <Text style={[styles.postName, { color: colors.text }]}>{post.profile?.full_name || 'Adsız'}</Text>
+                <Text style={[styles.postHandle, { color: colors.primary }]}>@{post.profile?.username}</Text>
+                <Text style={[styles.postTime, { color: colors.textMuted }]}>{timeAgo}</Text>
+              </View>
+            </TouchableOpacity>
+
+            <Text style={[styles.postContent, { color: colors.text }]}>{post.content}</Text>
+
+            {post.image_url && (
+              <Image source={{ uri: post.image_url }} style={styles.postImage} resizeMode="cover" />
+            )}
+
+            <View style={[styles.actionsRow, { borderTopColor: colors.border }]}>
+              <TouchableOpacity onPress={toggleLike} style={styles.actionBtn}>
+                <Text style={[styles.actionIcon, { color: liked ? colors.error : colors.textSecondary }]}>
+                  {liked ? '❤️' : '🤍'}
+                </Text>
+                <Text style={[styles.actionCountText, { color: liked ? colors.error : colors.textSecondary }]}>
+                  {likesCount}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.actionBtn}>
+                <Text style={styles.actionIcon}>💬</Text>
+                <Text style={[styles.actionCountText, { color: colors.textSecondary }]}>{comments.length}</Text>
+              </View>
+
+              <TouchableOpacity onPress={() => setShowShare(true)} style={styles.actionBtn}>
+                <Text style={[styles.actionIcon, { color: colors.textSecondary }]}>📤</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        }
         renderItem={({ item }) => (
-          <View style={styles.comment}>
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarLetter}>{(item.profile?.full_name || '?')[0]}</Text>
-            </View>
-            <View style={styles.commentBody}>
-              <Text style={styles.commentName}>{item.profile?.full_name}</Text>
-              <Text style={styles.commentText}>{item.content}</Text>
-            </View>
+          <View>
+            {renderComment(item)}
+            {item.replies?.map(r => renderComment(r, true))}
           </View>
         )}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>Hələ şərh yoxdur</Text>}
+        ListEmptyComponent={
+          <Text style={[styles.empty, { color: colors.textMuted }]}>Hələ şərh yoxdur. İlk şərh yazan ol!</Text>
+        }
       />
 
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Şərh yaz..."
-          placeholderTextColor={colors.textMuted}
-          value={newComment}
-          onChangeText={setNewComment}
-        />
-        <TouchableOpacity onPress={handleComment} style={styles.sendBtn}>
-          <Text style={styles.sendText}>Göndər</Text>
+      <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <View style={styles.inputWrapper}>
+          {replyTo && (
+            <View style={styles.replyIndicator}>
+              <Text style={[styles.replyIndicatorText, { color: colors.primary }]}>
+                {replyTo.profile?.full_name}'ə cavab
+              </Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)}>
+                <Text style={[styles.replyCancel, { color: colors.textMuted }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={[styles.inputInner, { backgroundColor: colors.background }]}>
+            <Text style={[styles.inputIcon, { color: colors.textMuted }]}>💬</Text>
+            <TextInput
+              style={[styles.input, { color: colors.text }]}
+              placeholder="Şərh yaz..."
+              placeholderTextColor={colors.textMuted}
+              value={newComment}
+              onChangeText={setNewComment}
+              multiline
+            />
+          </View>
+        </View>
+        <TouchableOpacity
+          onPress={handleComment}
+          style={[styles.sendBtn, { backgroundColor: newComment.trim() ? colors.primary : colors.textMuted + '40' }]}
+          disabled={!newComment.trim()}
+        >
+          <Text style={styles.sendIcon}>➡️</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal visible={showShare} transparent animationType="slide" onRequestClose={() => setShowShare(false)}>
+        <Pressable style={styles.overlay} onPress={() => setShowShare(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: colors.textMuted }]} />
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>Paylaş</Text>
+
+            <TouchableOpacity style={styles.sheetOption} onPress={() => { setShowShare(false); navigation.navigate('ConversationsList', { sharePost: post }); }}>
+              <View style={[styles.sheetIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={styles.sheetEmoji}>💬</Text>
+              </View>
+              <View style={styles.sheetOptionText}>
+                <Text style={[styles.sheetOptionTitle, { color: colors.text }]}>Dostlara göndər</Text>
+                <Text style={[styles.sheetOptionDesc, { color: colors.textMuted }]}>Mesaj olaraq paylaş</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity style={styles.sheetOption} onPress={async () => {
+              setShowShare(false);
+              try {
+                const postUrl = `https://ticcer.app/p/${post.id}`;
+                await Share.share({ message: `${post.content}\n\n🔗 ${postUrl}`, url: postUrl });
+              } catch {}
+            }}>
+              <View style={[styles.sheetIcon, { backgroundColor: colors.secondary + '20' }]}>
+                <Text style={styles.sheetEmoji}>📤</Text>
+              </View>
+              <View style={styles.sheetOptionText}>
+                <Text style={[styles.sheetOptionTitle, { color: colors.text }]}>Digər proqramlara göndər</Text>
+                <Text style={[styles.sheetOptionDesc, { color: colors.textMuted }]}>WhatsApp, Telegram və s.</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.cancelBtn, { borderColor: colors.border }]} onPress={() => setShowShare(false)}>
+              <Text style={[styles.cancelText, { color: colors.text }]}>Ləğv et</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -85,23 +298,69 @@ export default function PostDetailScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   backBtn: { padding: 16, paddingTop: 60 },
-  backText: { color: colors.primary, fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
-  list: { paddingBottom: 80 },
-  comment: { flexDirection: 'row', padding: 12, marginHorizontal: 16, marginBottom: 8, backgroundColor: colors.surface, borderRadius: 12 },
-  avatar: { width: 32, height: 32, borderRadius: 16 },
-  avatarPlaceholder: { backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { color: colors.white, fontSize: 14, fontWeight: fonts.weights.bold },
+  backText: { fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
+  list: { paddingBottom: 120 },
+  postCard: { margin: 16, borderRadius: 16, padding: 16, marginBottom: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  postAvatar: { width: 44, height: 44, borderRadius: 22 },
+  postAvatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  postAvatarLetter: { fontSize: 18, fontWeight: fonts.weights.bold },
+  headerInfo: { marginLeft: 12, flex: 1 },
+  postName: { fontWeight: fonts.weights.bold, fontSize: fonts.sizes.md },
+  postHandle: { fontWeight: fonts.weights.semibold, fontSize: fonts.sizes.sm, marginTop: 1 },
+  postTime: { fontSize: fonts.sizes.xs, marginTop: 2 },
+  postContent: { fontSize: fonts.sizes.md, lineHeight: 22, marginBottom: 12 },
+  postImage: { width: '100%', height: 250, borderRadius: 12, marginBottom: 12 },
+  actionsRow: {
+    flexDirection: 'row', borderTopWidth: 1, paddingTop: 8,
+  },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'center', paddingVertical: 8 },
+  actionIcon: { fontSize: 18 },
+  actionCountText: { fontSize: fonts.sizes.sm, fontWeight: fonts.weights.semibold },
+  comment: { flexDirection: 'row', padding: 12, marginHorizontal: 16, marginBottom: 8, borderRadius: 12 },
+  replyComment: { marginLeft: 48 },
+  commentAvatar: { width: 32, height: 32, borderRadius: 16 },
+  commentAvatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  commentAvatarLetter: { color: '#FFFFFF', fontSize: 14, fontWeight: fonts.weights.bold },
   commentBody: { marginLeft: 10, flex: 1 },
-  commentName: { color: colors.text, fontWeight: fonts.weights.semibold, fontSize: fonts.sizes.sm },
-  commentText: { color: colors.textSecondary, fontSize: fonts.sizes.sm, marginTop: 2 },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 30 },
+  commentName: { fontWeight: fonts.weights.semibold, fontSize: fonts.sizes.sm },
+  commentText: { fontSize: fonts.sizes.sm, marginTop: 2 },
+  replyBtn: { fontSize: fonts.sizes.xs, marginTop: 4, fontWeight: fonts.weights.semibold },
+  empty: { textAlign: 'center', marginTop: 30, fontSize: fonts.sizes.md },
   inputRow: {
-    flexDirection: 'row', padding: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface,
+    flexDirection: 'row', padding: 8, paddingBottom: 70, borderTopWidth: 1, alignItems: 'flex-end', gap: 8,
   },
+  inputWrapper: { flex: 1 },
+  inputInner: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: 24, paddingLeft: 12, paddingRight: 4,
+  },
+  inputIcon: { fontSize: 14, marginRight: 6 },
   input: {
-    flex: 1, backgroundColor: colors.background, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
-    color: colors.text, marginRight: 8,
+    flex: 1, fontSize: fonts.sizes.md, paddingVertical: 10, paddingRight: 8, maxHeight: 80,
   },
-  sendBtn: { backgroundColor: colors.primary, borderRadius: 20, paddingHorizontal: 16, justifyContent: 'center' },
-  sendText: { color: colors.white, fontWeight: fonts.weights.semibold },
+  replyIndicator: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 4, paddingBottom: 4,
+  },
+  replyIndicatorText: { fontSize: fonts.sizes.xs, fontWeight: fonts.weights.semibold },
+  replyCancel: { fontSize: fonts.sizes.md, marginLeft: 8 },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  sendIcon: { fontSize: 18 },
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: {
+    borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40,
+  },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  sheetTitle: { fontSize: fonts.sizes.lg, fontWeight: fonts.weights.bold, marginBottom: 20 },
+  sheetOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  sheetIcon: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  sheetEmoji: { fontSize: 22 },
+  sheetOptionText: { marginLeft: 14, flex: 1 },
+  sheetOptionTitle: { fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
+  sheetOptionDesc: { fontSize: fonts.sizes.sm, marginTop: 2 },
+  divider: { height: 1 },
+  cancelBtn: {
+    marginTop: 16, borderRadius: 12, borderWidth: 1, paddingVertical: 14, alignItems: 'center',
+  },
+  cancelText: { fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
 });

@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS post_comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES post_comments(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -86,6 +87,27 @@ CREATE TABLE IF NOT EXISTS reposts (
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS hashtags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tag TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS post_hashtags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  hashtag_id UUID NOT NULL REFERENCES hashtags(id) ON DELETE CASCADE,
+  UNIQUE(post_id, hashtag_id)
+);
+
+CREATE TABLE IF NOT EXISTS mentions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(post_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS reels (
@@ -185,6 +207,9 @@ ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reposts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hashtags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_hashtags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mentions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reel_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stories ENABLE ROW LEVEL SECURITY;
@@ -211,6 +236,12 @@ DROP POLICY IF EXISTS "Users can unlike" ON post_likes;
 DROP POLICY IF EXISTS "Comments are viewable by everyone" ON post_comments;
 DROP POLICY IF EXISTS "Users can comment" ON post_comments;
 DROP POLICY IF EXISTS "Users can delete own comments" ON post_comments;
+DROP POLICY IF EXISTS "Hashtags viewable by everyone" ON hashtags;
+DROP POLICY IF EXISTS "Anyone can create hashtags" ON hashtags;
+DROP POLICY IF EXISTS "Post hashtags viewable by everyone" ON post_hashtags;
+DROP POLICY IF EXISTS "Users can add hashtags to posts" ON post_hashtags;
+DROP POLICY IF EXISTS "Mentions viewable by everyone" ON mentions;
+DROP POLICY IF EXISTS "Users can create mentions" ON mentions;
 DROP POLICY IF EXISTS "Reels are viewable by everyone" ON reels;
 DROP POLICY IF EXISTS "Users can create reels" ON reels;
 DROP POLICY IF EXISTS "Users can delete own reels" ON reels;
@@ -244,6 +275,16 @@ CREATE POLICY "Users can unlike" ON post_likes FOR DELETE USING (user_id = auth.
 CREATE POLICY "Comments are viewable by everyone" ON post_comments FOR SELECT USING (true);
 CREATE POLICY "Users can comment" ON post_comments FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "Users can delete own comments" ON post_comments FOR DELETE USING (user_id = auth.uid());
+CREATE POLICY "Hashtags viewable by everyone" ON hashtags FOR SELECT USING (true);
+CREATE POLICY "Anyone can create hashtags" ON hashtags FOR INSERT WITH CHECK (true);
+CREATE POLICY "Post hashtags viewable by everyone" ON post_hashtags FOR SELECT USING (true);
+CREATE POLICY "Users can add hashtags to posts" ON post_hashtags FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM posts WHERE id = post_id AND user_id = auth.uid())
+);
+CREATE POLICY "Mentions viewable by everyone" ON mentions FOR SELECT USING (true);
+CREATE POLICY "Users can create mentions" ON mentions FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM posts WHERE id = post_id AND user_id = auth.uid())
+);
 CREATE POLICY "Reels are viewable by everyone" ON reels FOR SELECT USING (true);
 CREATE POLICY "Users can create reels" ON reels FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "Users can delete own reels" ON reels FOR DELETE USING (user_id = auth.uid());

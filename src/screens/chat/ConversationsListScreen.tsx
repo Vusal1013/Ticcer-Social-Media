@@ -13,7 +13,8 @@ type Conversation = {
   last_message_time: string | null;
 };
 
-export default function ConversationsListScreen({ navigation }: any) {
+export default function ConversationsListScreen({ navigation, route }: any) {
+  const sharePost = route?.params?.sharePost;
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,12 +79,26 @@ export default function ConversationsListScreen({ navigation }: any) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => fetchConversations())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [sharePost]);
+
+  async function handleConversationPress(item: Conversation) {
+    if (sharePost) {
+      const shareLink = `https://ticcer.app/post/${sharePost.id}`;
+      await supabase.from('messages').insert({
+        conversation_id: item.id,
+        sender_id: user!.id,
+        content: `📨 Post: ${sharePost.content}\n🔗 ${shareLink}`,
+      });
+      navigation.navigate('ChatScreen', { conversationId: item.id, otherUser: item.other_user });
+    } else {
+      navigation.navigate('ChatScreen', { conversationId: item.id, otherUser: item.other_user });
+    }
+  }
 
   const renderItem = useCallback(({ item }: { item: Conversation }) => (
     <TouchableOpacity
       style={styles.convItem}
-      onPress={() => navigation.navigate('ChatScreen', { conversationId: item.id, otherUser: item.other_user })}
+      onPress={() => handleConversationPress(item)}
     >
       {item.other_user?.avatar_url ? (
         <Image source={{ uri: item.other_user.avatar_url }} style={styles.avatar} />
@@ -109,10 +124,12 @@ export default function ConversationsListScreen({ navigation }: any) {
   return (
     <LinearGradient colors={['#0F0F23', '#1A1A3E']} style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Mesajlar</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('NewConversation')} style={styles.newBtn}>
-          <Text style={styles.newBtnText}>+</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>{sharePost ? 'Postu göndər' : 'Mesajlar'}</Text>
+        {!sharePost && (
+          <TouchableOpacity onPress={() => navigation.navigate('NewConversation')} style={styles.newBtn}>
+            <Text style={styles.newBtnText}>+</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList

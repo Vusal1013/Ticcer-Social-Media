@@ -61,9 +61,24 @@ export type Database = {
         Update: { id?: string; user_id?: string; post_id?: string; created_at?: string };
       };
       post_comments: {
-        Row: { id: string; user_id: string; post_id: string; content: string; created_at: string };
-        Insert: { id?: string; user_id: string; post_id: string; content: string; created_at?: string };
-        Update: { id?: string; user_id?: string; post_id?: string; content?: string; created_at?: string };
+        Row: { id: string; user_id: string; post_id: string; parent_id: string | null; content: string; created_at: string };
+        Insert: { id?: string; user_id: string; post_id: string; parent_id?: string | null; content: string; created_at?: string };
+        Update: { id?: string; user_id?: string; post_id?: string; parent_id?: string | null; content?: string; created_at?: string };
+      };
+      hashtags: {
+        Row: { id: string; tag: string; created_at: string };
+        Insert: { id?: string; tag: string; created_at?: string };
+        Update: { id?: string; tag?: string; created_at?: string };
+      };
+      post_hashtags: {
+        Row: { id: string; post_id: string; hashtag_id: string };
+        Insert: { id?: string; post_id: string; hashtag_id: string };
+        Update: { id?: string; post_id?: string; hashtag_id?: string };
+      };
+      mentions: {
+        Row: { id: string; post_id: string; user_id: string; created_at: string };
+        Insert: { id?: string; post_id: string; user_id: string; created_at?: string };
+        Update: { id?: string; post_id?: string; user_id?: string; created_at?: string };
       };
     };
     Views: {};

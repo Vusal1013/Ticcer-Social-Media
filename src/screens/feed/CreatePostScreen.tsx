@@ -10,6 +10,9 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { colors, fonts } from '../../constants/theme';
 
+const HASHTAG_RE = /#(\w+)/g;
+const MENTION_RE = /@(\w+)/g;
+
 export default function CreatePostScreen({ navigation }: any) {
   const { user } = useAuth();
   const [content, setContent] = useState('');
@@ -39,6 +42,53 @@ export default function CreatePostScreen({ navigation }: any) {
     return urlData.publicUrl;
   }
 
+  async function processHashtags(postId: string) {
+    const tags = [...content.matchAll(HASHTAG_RE)].map(m => m[1].toLowerCase());
+    if (tags.length === 0) return;
+    for (const tag of tags) {
+      const { data: existing } = await supabase
+        .from('hashtags')
+        .select('id')
+        .eq('tag', tag)
+        .single();
+      let hashtagId: string;
+      if (existing) {
+        hashtagId = existing.id;
+      } else {
+        const { data: inserted } = await supabase
+          .from('hashtags')
+          .insert({ tag })
+          .select('id')
+          .single();
+        if (!inserted) continue;
+        hashtagId = inserted.id;
+      }
+      await supabase.from('post_hashtags').insert({
+        post_id: postId,
+        hashtag_id: hashtagId,
+      });
+    }
+  }
+
+  async function processMentions(postId: string) {
+    const usernames = [...content.matchAll(MENTION_RE)].map(m => m[1].toLowerCase());
+    if (usernames.length === 0) return;
+    const uniqueUsernames = [...new Set(usernames)];
+    for (const username of uniqueUsernames) {
+      const { data: mentionedUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('username', username)
+        .single();
+      if (mentionedUser) {
+        await supabase.from('mentions').insert({
+          post_id: postId,
+          user_id: mentionedUser.id,
+        });
+      }
+    }
+  }
+
   async function handlePost() {
     if (!content.trim() && !image) return Alert.alert('Xəta', 'Mətn və ya şəkil əlavə edin');
     setUploading(true);
@@ -46,12 +96,16 @@ export default function CreatePostScreen({ navigation }: any) {
       let imageUrl: string | null = null;
       if (image) imageUrl = await uploadImage(image);
 
-      const { error } = await supabase.from('posts').insert({
+      const { data: post, error } = await supabase.from('posts').insert({
         user_id: user!.id,
         content: content.trim() || '(şəkil)',
         image_url: imageUrl,
-      });
+      }).select('id').single();
       if (error) throw error;
+
+      await processHashtags(post.id);
+      await processMentions(post.id);
+
       Alert.alert('Post atıldı!');
       navigation.goBack();
     } catch (err: any) {

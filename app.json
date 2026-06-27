@@ -21,6 +21,7 @@
     },
     "android": {
       "package": "com.ticcer.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0F0F23",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -35,7 +36,15 @@
       "expo-image-picker",
       "expo-camera",
       "expo-notifications",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "googleServicesFile": "./google-services.json"
+          }
+        }
+      ]
     ]
   }
 }

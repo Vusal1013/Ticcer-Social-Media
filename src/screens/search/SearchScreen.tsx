@@ -8,13 +8,17 @@ import { useTheme } from '../../lib/theme';
 import { fonts } from '../../constants/theme';
 import type { Profile } from '../../types';
 
-export default function SearchScreen({ navigation }: any) {
+export default function SearchScreen({ navigation, route }: any) {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const [query, setQuery] = useState('');
+  const initialHashtag = route?.params?.hashtag || '';
+  const initialSearchUser = route?.params?.searchUser || '';
+  const [query, setQuery] = useState(initialHashtag || initialSearchUser || '');
   const [results, setResults] = useState<Profile[]>([]);
+  const [hashtagResults, setHashtagResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<'users' | 'hashtags'>(initialHashtag ? 'hashtags' : 'users');
 
   async function fetchFollowingIds() {
     if (!user) return;
@@ -30,19 +34,41 @@ export default function SearchScreen({ navigation }: any) {
   }, []));
 
   useEffect(() => {
-    if (!query.trim()) { setResults([]); return; }
+    if (!query.trim()) { setResults([]); setHashtagResults([]); return; }
     const timer = setTimeout(async () => {
       setSearching(true);
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
-        .limit(20);
-      if (data) setResults(data);
+
+      if (mode === 'hashtags' || query.startsWith('#')) {
+        const tag = query.replace('#', '').toLowerCase();
+        const { data: posts } = await supabase
+          .from('post_hashtags')
+          .select('post_id, hashtags!inner(tag)')
+          .eq('hashtags.tag', tag);
+        if (posts) {
+          const postIds = posts.map((p: any) => p.post_id);
+          const { data: postsData } = await supabase
+            .from('posts')
+            .select('*, profile:profiles(*)')
+            .in('id', postIds)
+            .order('created_at', { ascending: false })
+            .limit(20);
+          setHashtagResults(postsData || []);
+        }
+        setResults([]);
+      } else {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+          .limit(20);
+        if (data) setResults(data);
+        setHashtagResults([]);
+      }
+
       setSearching(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, mode]);
 
   async function handleFollow(targetId: string) {
     await supabase.from('follows').insert({ follower_id: user!.id, following_id: targetId });
@@ -64,10 +90,10 @@ export default function SearchScreen({ navigation }: any) {
         <Text style={[styles.searchIcon, { color: colors.textMuted }]}>🔍</Text>
         <TextInput
           style={[styles.input, { color: colors.text }]}
-          placeholder="İstifadəçi axtar..."
+          placeholder="İstifadəçi və ya #hashtag axtar..."
           placeholderTextColor={colors.textMuted}
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(t) => { setQuery(t); if (t.startsWith('#')) setMode('hashtags'); else setMode('users'); }}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -78,9 +104,40 @@ export default function SearchScreen({ navigation }: any) {
         ) : null}
       </View>
 
+      <View style={styles.tabs}>
+        <TouchableOpacity
+          style={[styles.tab, mode === 'users' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => setMode('users')}
+        >
+          <Text style={[styles.tabText, { color: mode === 'users' ? colors.primary : colors.textMuted }]}>İstifadəçilər</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, mode === 'hashtags' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => setMode('hashtags')}
+        >
+          <Text style={[styles.tabText, { color: mode === 'hashtags' ? colors.primary : colors.textMuted }]}>Hashtag</Text>
+        </TouchableOpacity>
+      </View>
+
       {searching ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-      ) : results.length > 0 ? (
+      ) : mode === 'hashtags' && hashtagResults.length > 0 ? (
+        <FlatList
+          data={hashtagResults}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.postItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => navigation.navigate('FeedTab', { screen: 'PostDetail', params: { post: item, source: 'SearchTab' } })}
+            >
+              <Text style={[styles.postContent, { color: colors.text }]} numberOfLines={2}>{item.content}</Text>
+              <Text style={[styles.postAuthor, { color: colors.textMuted }]}>@{item.profile?.username}</Text>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={null}
+        />
+      ) : mode === 'users' && results.length > 0 ? (
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
@@ -91,7 +148,7 @@ export default function SearchScreen({ navigation }: any) {
               onPress={() => navigation.navigate('ProfileTab', { screen: 'ProfileMain', params: { userId: item.id } })}
             >
               <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-                <Text style={styles.avatarText}>{item.full_name.charAt(0).toUpperCase()}</Text>
+                <Text style={styles.avatarText}>{item.full_name?.charAt(0).toUpperCase() || '?'}</Text>
               </View>
               <View style={styles.userInfo}>
                 <Text style={[styles.username, { color: colors.text }]}>{item.username}</Text>
@@ -112,7 +169,7 @@ export default function SearchScreen({ navigation }: any) {
           )}
         />
       ) : query.trim() ? (
-        <Text style={[styles.noResults, { color: colors.textMuted }]}>İstifadəçi tapılmadı</Text>
+        <Text style={[styles.noResults, { color: colors.textMuted }]}>Nəticə tapılmadı</Text>
       ) : null}
     </LinearGradient>
   );
@@ -129,6 +186,9 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 16, marginRight: 8 },
   input: { flex: 1, fontSize: fonts.sizes.md },
   clearBtn: { fontSize: 16, padding: 4 },
+  tabs: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 8 },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 8 },
+  tabText: { fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
   list: { paddingHorizontal: 16 },
   userItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
@@ -140,5 +200,10 @@ const styles = StyleSheet.create({
   followBtnText: { color: '#FFFFFF', fontWeight: fonts.weights.semibold, fontSize: fonts.sizes.sm },
   followingBtn: { borderRadius: 16, paddingVertical: 6, paddingHorizontal: 16, borderWidth: 1 },
   followingText: { fontWeight: fonts.weights.semibold, fontSize: fonts.sizes.sm },
+  postItem: {
+    borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1,
+  },
+  postContent: { fontSize: fonts.sizes.sm, lineHeight: 18 },
+  postAuthor: { fontSize: fonts.sizes.xs, marginTop: 4 },
   noResults: { textAlign: 'center', marginTop: 40, fontSize: fonts.sizes.md },
 });
