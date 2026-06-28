@@ -61,11 +61,13 @@ sosial-media-app/
         │   └── NewConversationScreen.tsx   # Yeni mesaj (user search)
         ├── community/
         │   ├── CommunityListScreen.tsx     # Topluluklari gez/kateqor
-        │   ├── CommunityDetailScreen.tsx   # Kanal listesi (#text + 🎤voice)
-        │   ├── CreateCommunityScreen.tsx   # Topluluk yarat (#genel + #duyurular)
-        │   ├── ChannelChatScreen.tsx       # Kanal sohbeti (filter + slow mode)
-        │   ├── ChannelSettingsScreen.tsx   # Ban, yasakli kelime, slow mode
-        │   └── VoiceChannelScreen.tsx      # Sesli oda UI (mute, screen share)
+        │   ├── CommunityDetailScreen.tsx       # Kanal listesi + rol yönetimi + ses username
+        │   ├── CreateCommunityScreen.tsx       # Topluluk yarat (#genel + #duyurular)
+        │   ├── ChannelChatScreen.tsx           # Kanal sohbeti (filter + slow mode)
+        │   ├── ChannelSettingsScreen.tsx       # Ban, yasakli kelime, slow mode, icazeler
+        │   ├── VoiceChannelScreen.tsx          # Sesli oda UI (mute, screen share)
+        │   ├── RoleManagementScreen.tsx        # Rol yaratma, üyelere rol atama
+        │   └── ChannelPermissionsScreen.tsx    # Kanal izinleri (oku/yaz/konuş)
         ├── search/
         │   └── SearchScreen.tsx     # User + hashtag + community axtarisi
         ├── profile/
@@ -115,7 +117,7 @@ sosial-media-app/
 
 ### Phase 6 — Communities ✅
 - [x] CommunityListScreen (browse, join/leave, kateqoriyalar)
-- [x] CommunityDetailScreen (kanal listesi + admin panel)
+- [x] CommunityDetailScreen (kanal listesi + role management + voice participant usernames)
 - [x] CreateCommunityScreen (auto-creates #genel + #duyurular)
 - [x] ChannelChatScreen (per-channel realtime chat)
 
@@ -126,6 +128,26 @@ sosial-media-app/
 - [x] ChannelSettingsScreen (yasakli kelimeler, slow mode, kick/ban/unban)
 - [x] ChannelChatScreen (ban check, mesaj filter, slow mode throttling)
 - [x] VoiceChannelScreen (join/leave, mute/unmute, screen share indicator, participant list)
+
+### Phase 19 — Rol Sistemi & Kanal İcazələri ✅
+- [x] `community-audio` Storage bucket (giris/cixis ses faylları)
+- [x] VoiceChannelScreen → `expo-av` ilə giriş/çıxış səs effekti (giris_ses.mp3 / cixis_ses.mp3)
+- [x] İstifadəçi otağa girəndə/çıxanda avtomatik səs çalınır
+- [x] Digər istifadəçilər girəndə/çıxanda da səs eşidilir (realtime) 
+- [x] `community_roles` table (community_id, name, color, permissions JSONB)
+- [x] `role_assignments` table (user ↔ role many-to-many)
+- [x] `channel_permissions` table (role-based can_read/can_write/can_voice)
+- [x] `voice_participants` → `screen_sharing` column əlavə edildi
+- [x] RoleManagementScreen — rol yaratma, rəng seçimi, üzvlərə rol təyin etmə
+- [x] `community_roles` table (community_id, name, color, permissions JSONB)
+- [x] `role_assignments` table (user ↔ role many-to-many)
+- [x] `channel_permissions` table (role-based can_read/can_write/can_voice)
+- [x] `voice_participants` → `screen_sharing` column əlavə edildi
+- [x] RoleManagementScreen — rol yaratma, rəng seçimi, üzvlərə rol təyin etmə
+- [x] ChannelPermissionsScreen — hər rol üçün oxu/yaz/danış icazə toggle-ları
+- [x] CommunityDetailScreen → Rol idarəetmə düyməsi + ses kanalında username göstərilməsi
+- [x] ChannelSettingsScreen → İcazə düyməsi (shield icon)
+- [x] VoiceChannelScreen → screen_sharing DB-yə yazılır
 
 ### Phase 8 — Kamera ✅
 - [x] CameraScreen (8 renk filtresi: Warm, Cool, Vintage, Noir, Dramatic, Pastel, Neon)
@@ -231,7 +253,10 @@ sosial-media-app/
 | `community_channels` | id, community_id, name, type, banned_words[], slow_mode, slow_mode_interval, created_at |
 | `channel_messages` | channel_id, user_id, content, created_at |
 | `channel_bans` | channel_id, user_id, reason, expires_at, banned_at |
-| `voice_participants` | channel_id, user_id, muted, screen_sharing, joined_at |
+| `voice_participants` | channel_id, user_id, is_muted, screen_sharing, joined_at |
+| `community_roles` | community_id, name, color, permissions (JSONB) |
+| `role_assignments` | community_id, user_id, role_id |
+| `channel_permissions` | channel_id, role_id, can_read, can_write, can_voice |
 | `saved_posts` | user_id, post_id (unique), created_at |
 | `notifications` | user_id, type, title, body, data, read, created_at |
 | `notification_preferences` | user_id (unique), likes, comments, follows, mentions, messages |
@@ -244,6 +269,7 @@ sosial-media-app/
 | `post-images` | Post gorselleri | Public read, auth upload |
 | `reels` | Reel videolar | Public read, auth upload |
 | `stories` | Story medyalari | Public read, auth upload |
+| `community-audio` | Ses kanali giris/cixis effektleri | Public read, auth upload |
 
 ### RLS Policies
 
@@ -289,6 +315,7 @@ Supabase Dashboard → SQL Editor'da sirayla calistir:
 1. `supabase-migration.sql`
 2. `supabase-storage-setup.sql` (eger mevcud proyekte elave edirsinizse)
 3. `supabase-channels.sql`
+4. `supabase-roles.sql`
 
 ### Edge Function Deploy
 ```bash
@@ -349,11 +376,33 @@ nvm use 20
 ### Orta Vade
 - [ ] WebRTC sesli/görüntülü arama (voice channel)
 - [ ] Admin panel → content moderation (post/comment report)
+- [ ] Ekran paylaşma sistemi — userlər bir-birinin ekranını görə bilər
 
 ### Uzun Vade
 - [ ] EAS Build → App Store / Google Play
 - [ ] OTA güncelleme (expo-updates)
 - [ ] Performance optimization (FlashList, lazy loading)
+- [ ] WebRTC sesli danışma sistemi (voice channel voice chat)
+- [ ] Ekran paylaşımını canlı izləmə (Discord ekran paylaşma kimi)
+
+---
+
+## 📦 Supabase Yer Tutumu Analizi (Tamamlanan və Gələcək)
+
+| Xüsusiyyət | DB yer tutumu | Storage yer tutumu | Status |
+|------------|---------------|-------------------|--------|
+| Ses/yazı kanal kateqoriyası | ❌ Cüzi (1 sütun) | ❌ Yox | ✅ Tamamlandı |
+| Rol sistemi | ⚠️ Orta (3 yeni cədvəl: `community_roles`, `role_assignments`, `channel_permissions`) | ❌ Yox | ✅ Tamamlandı |
+| Kanallara rollərlə giriş | ❌ Cüzi (1-2 sütun) | ❌ Yox | ✅ Tamamlandı |
+| Ses kanalında username göstərilməsi | ❌ Cüzi | ❌ Yox | ✅ Tamamlandı |
+| Səs effekti (giriş/çıxış) | ❌ Yox | ⚠️ Kiçik (2 audio fayl, ~100KB) | ✅ Tamamlandı |
+| Ekran paylaşma | ❌ Yox | ❌ Yox | ⏳ Gələcək (WebRTC) |
+| WebRTC səsli danışma | ❌ Yox (yalnız signaling) | ❌ Yox | ⏳ Gələcək |
+
+### Nəticə
+- **Storage yer açar**: Yalnız səs effekt faylları (join/leave sound)
+- **DB yer açar**: Rol sistemi (3 cədvəl), qalanları cüzi sütun əlavəsi
+- **Ekran paylaşma + WebRTC**: Bazada və Storage-də **0 yer tutur** — P2P real-time axındır
 
 ---
 
@@ -395,11 +444,17 @@ Firebase Dynamic Links və ya [Branch.io](https://branch.io) istifadə etmək:
 ## 📱 Tab Navigasiyasi
 
 ```
-1. 🏠 Feed       — Post akisi, story preview, bildiriş zəngi
-2. 🔍 Axtar      — User, hashtag, community axtarisi
-3. ▶️ Reels      — TikTok stil dikey video
-4. 👥 Topluluq   — Discord stil kanallar
-5. 👤 Profil     — Profil, saxlanılan postlar, ayarlar, admin panel
+1. Feed       — Post akisi, story preview, WhatsApp stil bildiriş toast-ı, FAB (+)
+2. Axtar      — User, hashtag, community axtarisi
+3. Reels      — TikTok stil dikey video
+4. Topluluq   — Discord stil kanallar
+5. Profil     — Profil, saxlanılan postlar, ayarlar, admin panel
+```
+
+### Header Dizaynı
+```
+[📸 Camera]       Ticcer       [✉️ Messages]
+    Sol üst        Orta           Sağ üst
 ```
 
 ## 🆕 27 İyun 2026 — Yeni Əlavə Edilənlər

@@ -51,6 +51,7 @@ ALTER TABLE voice_participants ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Members can view voice participants" ON voice_participants;
 DROP POLICY IF EXISTS "Members can join voice" ON voice_participants;
 DROP POLICY IF EXISTS "Members can leave voice" ON voice_participants;
+DROP POLICY IF EXISTS "Members can update own mute" ON voice_participants;
 
 CREATE POLICY "Members can view voice participants" ON voice_participants FOR SELECT USING (
   EXISTS (SELECT 1 FROM community_members cm JOIN community_channels cc ON cc.community_id = cm.community_id

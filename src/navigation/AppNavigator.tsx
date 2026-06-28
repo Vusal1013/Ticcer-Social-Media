@@ -22,6 +22,8 @@ import ChannelChatScreen from '../screens/community/ChannelChatScreen';
 import ChannelSettingsScreen from '../screens/community/ChannelSettingsScreen';
 import VoiceChannelScreen from '../screens/community/VoiceChannelScreen';
 import CreateCommunityScreen from '../screens/community/CreateCommunityScreen';
+import RoleManagementScreen from '../screens/community/RoleManagementScreen';
+import ChannelPermissionsScreen from '../screens/community/ChannelPermissionsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import AdminPanelScreen from '../screens/admin/AdminPanelScreen';
@@ -73,6 +75,8 @@ function CommunityStack() {
       <Stack.Screen name="ChannelSettings" component={ChannelSettingsScreen} />
       <Stack.Screen name="VoiceChannel" component={VoiceChannelScreen} />
       <Stack.Screen name="CreateCommunity" component={CreateCommunityScreen} />
+      <Stack.Screen name="RoleManagement" component={RoleManagementScreen} />
+      <Stack.Screen name="ChannelPermissions" component={ChannelPermissionsScreen} />
     </Stack.Navigator>
   );
 }

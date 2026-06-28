@@ -14,6 +14,7 @@ export default function CommunityDetailScreen({ route, navigation }: any) {
   const [showCreate, setShowCreate] = useState(false);
   const [channelName, setChannelName] = useState('');
   const [channelType, setChannelType] = useState<'text' | 'voice'>('text');
+  const [voiceParticipants, setVoiceParticipants] = useState<Record<string, any[]>>({});
   const isOwner = community.owner_id === user!.id;
 
   async function fetchChannels() {
@@ -22,7 +23,27 @@ export default function CommunityDetailScreen({ route, navigation }: any) {
       .select('*')
       .eq('community_id', community.id)
       .order('created_at', { ascending: true });
-    if (data) setChannels(data);
+    if (data) {
+      setChannels(data);
+      fetchVoiceParticipants(data.filter(c => c.type === 'voice'));
+    }
+  }
+
+  async function fetchVoiceParticipants(voiceChannels: any[]) {
+    if (voiceChannels.length === 0) return;
+    const channelIds = voiceChannels.map(c => c.id);
+    const { data } = await supabase
+      .from('voice_participants')
+      .select('*, profile:profiles(*)')
+      .in('channel_id', channelIds);
+    if (data) {
+      const grouped: Record<string, any[]> = {};
+      data.forEach(p => {
+        if (!grouped[p.channel_id]) grouped[p.channel_id] = [];
+        grouped[p.channel_id].push(p);
+      });
+      setVoiceParticipants(grouped);
+    }
   }
 
   useEffect(() => { fetchChannels(); }, []);
@@ -41,6 +62,49 @@ export default function CommunityDetailScreen({ route, navigation }: any) {
   const textChannels = channels.filter(c => c.type === 'text');
   const voiceChannels = channels.filter(c => c.type === 'voice');
 
+  function ChannelItem({ item }: { item: any }) {
+    const participants = voiceParticipants[item.id] || [];
+    return (
+      <TouchableOpacity
+        style={styles.channelItem}
+        onPress={() => {
+          if (item.type === 'voice') {
+            navigation.navigate('VoiceChannel', { channel: item, community });
+          } else {
+            navigation.navigate('ChannelChat', { channel: item, community });
+          }
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          {item.type === 'voice'
+            ? <Ionicons name="mic-outline" size={18} color={colors.textMuted} style={{ marginRight: 10 }} />
+            : <Text style={styles.channelIcon}>#</Text>}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.channelName}>{item.name}</Text>
+            {item.type === 'voice' && participants.length > 0 && (
+              <Text style={styles.voiceUsers}>
+                <Ionicons name="volume-high-outline" size={12} color={colors.success} /> {participants.map((p: any) => p.profile?.full_name?.split(' ')[0] || p.profile?.username).join(', ')}
+              </Text>
+            )}
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {item.type === 'voice' && participants.length > 0 && (
+            <Text style={styles.participantCount}>{participants.length}</Text>
+          )}
+          {isOwner && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ChannelPermissions', { channel: item, community })}
+              style={styles.permBtn}
+            >
+              <Ionicons name="shield-outline" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <LinearGradient colors={['#0F0F23', '#1A1A3E']} style={styles.container}>
       <View style={styles.header}>
@@ -51,28 +115,19 @@ export default function CommunityDetailScreen({ route, navigation }: any) {
           <Text style={styles.title}>{community.name}</Text>
           {community.verified && <VerifiedBadge size={16} />}
         </View>
-        <View style={{ width: 40 }} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {isOwner && (
+            <TouchableOpacity onPress={() => navigation.navigate('RoleManagement', { community })}>
+              <Ionicons name="shield-outline" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <FlatList
-        data={[...textChannels, ...voiceChannels]}
+        data={channels}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.channelItem}
-            onPress={() => {
-              if (item.type === 'voice') {
-                navigation.navigate('VoiceChannel', { channel: item, community });
-              } else {
-                navigation.navigate('ChannelChat', { channel: item, community });
-              }
-            }}
-          >
-            {item.type === 'voice' ? <Ionicons name="microphone-outline" size={18} color={colors.textMuted} style={{ marginRight: 10 }} /> : <Text style={styles.channelIcon}>#</Text>}
-            <Text style={styles.channelName}>{item.name}</Text>
-            <Text style={styles.channelType}>{item.type === 'voice' ? 'Sesli' : ''}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => <ChannelItem item={item} />}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.infoSection}>
@@ -105,7 +160,7 @@ export default function CommunityDetailScreen({ route, navigation }: any) {
                   style={[styles.typeBtn, channelType === 'voice' && styles.typeBtnActive]}
                   onPress={() => setChannelType('voice')}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="microphone-outline" size={16} color={channelType === 'voice' ? colors.white : colors.textMuted} /><Text style={[styles.typeBtnText, channelType === 'voice' && styles.typeBtnTextActive, { marginLeft: 4 }]}> Ses</Text></View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="mic-outline" size={16} color={channelType === 'voice' ? colors.white : colors.textMuted} /><Text style={[styles.typeBtnText, channelType === 'voice' && styles.typeBtnTextActive, { marginLeft: 4 }]}> Ses</Text></View>
                 </TouchableOpacity>
               </View>
               <View style={styles.createActions}>
@@ -140,8 +195,10 @@ const styles = StyleSheet.create({
   sectionLabel: { color: colors.textMuted, fontSize: fonts.sizes.xs, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginTop: 8 },
   channelItem: { flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 4, backgroundColor: colors.surface, borderRadius: 8 },
   channelIcon: { color: colors.textMuted, fontSize: 18, marginRight: 10 },
-  channelName: { color: colors.text, fontSize: fonts.sizes.md, flex: 1 },
-  channelType: { color: colors.textMuted, fontSize: fonts.sizes.xs },
+  channelName: { color: colors.text, fontSize: fonts.sizes.md, fontWeight: '500' },
+  voiceUsers: { color: colors.success, fontSize: fonts.sizes.xs, marginTop: 2 },
+  participantCount: { color: colors.success, fontSize: fonts.sizes.xs, fontWeight: '600', backgroundColor: colors.success + '20', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  permBtn: { padding: 4 },
   bottomActions: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border },
   addChannelBtn: { backgroundColor: colors.primary + '30', borderRadius: 12, padding: 14, alignItems: 'center' },
   addChannelBtnText: { color: colors.primary, fontWeight: '600' },

@@ -3,6 +3,7 @@ import { View, Text, TextInput, FlatList, TouchableOpacity, Switch, Alert, Style
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../../constants/theme';
 
 export default function ChannelSettingsScreen({ route, navigation }: any) {
@@ -97,7 +98,9 @@ export default function ChannelSettingsScreen({ route, navigation }: any) {
           <Text style={styles.backBtn}>Geri</Text>
         </TouchableOpacity>
         <Text style={styles.title}># {channel.name} ayarlari</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('ChannelPermissions', { channel, community })}>
+          <Ionicons name="shield-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       <FlatList

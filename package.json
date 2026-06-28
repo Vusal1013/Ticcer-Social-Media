@@ -14,6 +14,7 @@
     "@types/react-native": "^0.72.8",
     "babel-preset-expo": "~56.0.0",
     "expo": "~56.0.12",
+    "expo-audio": "~56.0.12",
     "expo-build-properties": "~56.0.19",
     "expo-camera": "~56.0.8",
     "expo-device": "~56.0.4",
