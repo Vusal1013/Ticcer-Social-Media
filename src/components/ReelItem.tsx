@@ -12,7 +12,6 @@ const { height: WINDOW_HEIGHT } = Dimensions.get('window');
 type Props = {
   reel: Reel;
   isActive: boolean;
-  onLike?: () => void;
 };
 
 export default function ReelItem({ reel, isActive }: Props) {
@@ -31,6 +30,7 @@ export default function ReelItem({ reel, isActive }: Props) {
     } else {
       player.pause();
     }
+    return () => { player.pause(); };
   }, [isActive]);
 
   async function toggleLike() {

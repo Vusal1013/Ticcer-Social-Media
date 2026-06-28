@@ -41,21 +41,8 @@ export default function ChannelChatScreen({ route, navigation }: any) {
     checkBan();
     fetchChannelSettings();
 
-    const channelSub = supabase.channel(`channel-${channel.id}`)
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'channel_messages', filter: `channel_id=eq.${channel.id}` },
-        (payload: any) => {
-          setMessages(prev => [...prev, payload.new]);
-          if (payload.new.user_id && !profiles[payload.new.user_id]) {
-            supabase.from('profiles').select('*').eq('id', payload.new.user_id).single().then(({ data }) => {
-              if (data) setProfiles(prev => ({ ...prev, [data.id]: data }));
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channelSub); };
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   async function checkBan() {

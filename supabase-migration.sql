@@ -347,6 +347,19 @@ CREATE POLICY "Users can view messages in their conversations" ON messages FOR S
     SELECT 1 FROM conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()
   ));
 
+CREATE POLICY "Users can delete messages in their conversations" ON messages FOR DELETE
+  USING (EXISTS (
+    SELECT 1 FROM conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()
+  ));
+
+CREATE POLICY "Users can delete own participation" ON conversation_participants FOR DELETE
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can delete conversations they are in" ON conversations FOR DELETE
+  USING (EXISTS (
+    SELECT 1 FROM conversation_participants WHERE conversation_id = id AND user_id = auth.uid()
+  ));
+
 CREATE POLICY "Communities are viewable by everyone" ON communities FOR SELECT USING (true);
 CREATE POLICY "Users can create communities" ON communities FOR INSERT WITH CHECK (owner_id = auth.uid());
 

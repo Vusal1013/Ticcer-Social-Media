@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
+import { uriToArrayBuffer } from '../../lib/storage';
 import { useAuth } from '../../lib/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../../constants/theme';
@@ -29,15 +30,8 @@ export default function CreateReelScreen({ navigation }: any) {
   async function uploadVideo(uri: string) {
     const ext = 'mp4';
     const fileName = `${user!.id}_${Date.now()}.${ext}`;
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.onload = () => resolve(xhr.response);
-      xhr.onerror = reject;
-      xhr.responseType = 'blob';
-      xhr.open('GET', uri, true);
-      xhr.send(null);
-    });
-    const { error } = await supabase.storage.from('reels').upload(fileName, blob, { contentType: 'video/mp4' });
+    const arrayBuffer = await uriToArrayBuffer(uri);
+    const { error } = await supabase.storage.from('reels').upload(fileName, arrayBuffer, { contentType: 'video/mp4' });
     if (error) throw error;
     const { data: urlData } = supabase.storage.from('reels').getPublicUrl(fileName);
     return urlData.publicUrl;

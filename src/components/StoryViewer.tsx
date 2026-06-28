@@ -1,11 +1,10 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, Dimensions, StyleSheet, Animated } from 'react-native';
-import { VideoView, useVideoPlayer } from 'expo-video';
-import { useEventListener } from 'expo';
+import { useRef, useState, useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, Dimensions, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../constants/theme';
+import { getRelativeTime } from '../lib/time';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -15,101 +14,91 @@ type Props = {
   onClose: () => void;
 };
 
-const STORY_DURATION = 5000;
-
 export default function StoryViewer({ stories, initialIndex = 0, onClose }: Props) {
   const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [viewers, setViewers] = useState<any[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentStory = stories[currentIndex];
-  const isVideo = currentStory?.type === 'video';
-
-  const player = useVideoPlayer(isVideo ? currentStory.media_url : null, p => {
-    p.loop = false;
-  });
+  const isOwner = user?.id === currentStory?.user_id;
 
   useEffect(() => {
-    if (user) {
+    if (user && currentStory?.id) {
       supabase.from('story_views').insert({
         user_id: user.id,
-        story_id: currentStory?.id,
+        story_id: currentStory.id,
       }).then();
     }
   }, [currentIndex]);
 
   useEffect(() => {
-    if (!isVideo) startTimer();
-    return () => clearTimer();
-  }, [currentIndex]);
-
-  const clearTimer = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    progressAnim.setValue(0);
-  }, []);
-
-  const startTimer = useCallback(() => {
-    clearTimer();
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: STORY_DURATION,
-      useNativeDriver: false,
-    }).start();
-
-    timerRef.current = setTimeout(() => {
-      goNext();
-    }, STORY_DURATION);
-  }, [currentIndex]);
-
-  const goNext = useCallback(() => {
-    if (currentIndex < stories.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+    if (currentStory?.id && isOwner) {
+      supabase
+        .from('story_views')
+        .select('user_id, profile:profiles!inner(username)')
+        .eq('story_id', currentStory.id)
+        .neq('user_id', user!.id)
+        .then(({ data }) => {
+          if (data) setViewers(data);
+        });
     } else {
-      onClose();
-    }
-  }, [currentIndex, stories.length]);
-
-  const goPrev = useCallback(() => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-    } else {
-      onClose();
+      setViewers([]);
     }
   }, [currentIndex]);
 
-  useEventListener(player, 'playToEnd', goNext);
+  useEffect(() => {
+    setProgress(0);
+    const start = Date.now();
+    timerRef.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const pct = Math.min(elapsed / 5000, 1);
+      setProgress(pct);
+      if (pct >= 1) {
+        clearInterval(timerRef.current!);
+        if (currentIndex < stories.length - 1) {
+          setCurrentIndex(prev => prev + 1);
+        } else {
+          onClose();
+        }
+      }
+    }, 100);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [currentIndex]);
 
   const handleTap = (evt: any) => {
     const x = evt.nativeEvent.locationX;
-    if (x < SCREEN_WIDTH / 3) goPrev();
-    else if (x > (SCREEN_WIDTH / 3) * 2) goNext();
+    if (x < SCREEN_WIDTH / 3) {
+      if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
+      else onClose();
+    } else if (x > (SCREEN_WIDTH / 3) * 2) {
+      if (currentIndex < stories.length - 1) setCurrentIndex(prev => prev + 1);
+      else onClose();
+    }
   };
+
+  const showViewers = () => {
+    if (viewers.length === 0) return;
+    const names = viewers.map((v: any) => `@${v.profile?.username || '?'}`).join('\n');
+    Alert.alert('Baxanlar', names);
+  };
+
+  if (!currentStory) return null;
 
   return (
     <View style={styles.container}>
       <TouchableOpacity activeOpacity={1} onPress={handleTap} style={styles.touchArea}>
-        {currentStory?.type === 'video' ? (
-          <VideoView
-            player={player}
-            style={styles.media}
-            contentFit="cover"
-            nativeControls={false}
-          />
-        ) : (
-          <Image source={{ uri: currentStory?.media_url }} style={styles.media} />
-        )}
+        <Image source={{ uri: currentStory.media_url }} style={styles.media} />
 
         <View style={styles.topBar}>
           {stories.map((_, i) => (
             <View key={i} style={[styles.progressTrack, i > 0 && { marginLeft: 4 }]}>
-              <Animated.View
+              <View
                 style={[
                   styles.progressFill,
                   i < currentIndex && { flex: 1 },
-                  i === currentIndex && { flex: progressAnim.interpolate({
-                    inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp',
-                  })},
+                  i === currentIndex && { flex: progress },
                   i > currentIndex && { flex: 0 },
                 ]}
               />
@@ -118,9 +107,17 @@ export default function StoryViewer({ stories, initialIndex = 0, onClose }: Prop
         </View>
 
         <View style={styles.bottomInfo}>
-          <Text style={styles.username}>{currentStory?.profile?.username || ''}</Text>
+          <Text style={styles.username}>{currentStory.profile?.username || ''}</Text>
+          <Text style={styles.time}>{getRelativeTime(currentStory.created_at)}</Text>
         </View>
       </TouchableOpacity>
+
+      {isOwner && viewers.length > 0 && (
+        <TouchableOpacity onPress={showViewers} style={styles.viewerBadge}>
+          <Ionicons name="eye-outline" size={14} color={colors.white} />
+          <Text style={styles.viewerText}>{viewers.length}</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
         <Ionicons name="close-outline" size={18} color={colors.white} />
@@ -145,9 +142,16 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 60, left: 16,
   },
   username: { color: colors.white, fontWeight: fonts.weights.bold, fontSize: fonts.sizes.md },
+  time: { color: 'rgba(255,255,255,0.5)', fontSize: fonts.sizes.xs, marginTop: 2 },
   closeBtn: {
     position: 'absolute', top: 50, right: 16, width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center',
   },
-  closeText: { color: colors.white, fontSize: 18, fontWeight: fonts.weights.bold },
+  viewerBadge: {
+    position: 'absolute', bottom: 100, left: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  viewerText: { color: colors.white, fontSize: fonts.sizes.sm, fontWeight: '600' },
 });

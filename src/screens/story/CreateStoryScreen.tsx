@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../lib/supabase';
+import { uriToArrayBuffer } from '../../lib/storage';
 import { useAuth } from '../../lib/auth';
 import { colors, fonts } from '../../constants/theme';
 
@@ -34,9 +35,8 @@ export default function CreateStoryScreen({ navigation }: any) {
       }
       const ext = isVideo ? 'mp4' : 'jpg';
       const fileName = `story_${user!.id}_${Date.now()}.${ext}`;
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const { error: uploadError } = await supabase.storage.from('stories').upload(fileName, blob, { contentType: isVideo ? 'video/mp4' : 'image/jpeg' });
+      const arrayBuffer = await uriToArrayBuffer(uri);
+      const { error: uploadError } = await supabase.storage.from('stories').upload(fileName, arrayBuffer, { contentType: isVideo ? 'video/mp4' : 'image/jpeg' });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('stories').getPublicUrl(fileName);
       const { error } = await supabase.from('stories').insert({

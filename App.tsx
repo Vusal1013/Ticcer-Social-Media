@@ -2,6 +2,7 @@ import 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from './src/lib/auth';
 import { ThemeProvider, useTheme } from './src/lib/theme';
@@ -34,11 +35,13 @@ function ThemedApp() {
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <ThemeProvider>
-        <ThemedApp />
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={styles.root}>
+        <ThemeProvider>
+          <ThemedApp />
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 

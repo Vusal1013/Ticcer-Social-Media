@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, Alert, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
@@ -75,10 +75,8 @@ export default function ConversationsListScreen({ navigation, route }: any) {
 
   useEffect(() => {
     fetchConversations();
-    const channel = supabase.channel('conv-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => fetchConversations())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const interval = setInterval(fetchConversations, 10000);
+    return () => clearInterval(interval);
   }, [sharePost]);
 
   async function handleConversationPress(item: Conversation) {
@@ -95,10 +93,27 @@ export default function ConversationsListScreen({ navigation, route }: any) {
     }
   }
 
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  async function deleteForMe(id: string) {
+    await supabase.from('conversation_participants').delete().eq('conversation_id', id).eq('user_id', user!.id);
+    setDeleteTarget(null);
+    fetchConversations();
+  }
+
+  async function deleteForEveryone(id: string) {
+    await supabase.from('messages').delete().eq('conversation_id', id);
+    await supabase.from('conversation_participants').delete().eq('conversation_id', id);
+    await supabase.from('conversations').delete().eq('id', id);
+    setDeleteTarget(null);
+    fetchConversations();
+  }
+
   const renderItem = useCallback(({ item }: { item: Conversation }) => (
     <TouchableOpacity
       style={styles.convItem}
       onPress={() => handleConversationPress(item)}
+      onLongPress={() => setDeleteTarget(item.id)}
     >
       {item.other_user?.avatar_url ? (
         <Image source={{ uri: item.other_user.avatar_url }} style={styles.avatar} />
@@ -137,10 +152,32 @@ export default function ConversationsListScreen({ navigation, route }: any) {
         renderItem={renderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
+        ListFooterComponent={<View style={{ height: 80 }} />}
         ListEmptyComponent={
           <Text style={styles.empty}>Henuz mesajlasma yox</Text>
         }
       />
+
+      {deleteTarget && (
+        <View style={styles.deleteOverlay}>
+          <TouchableOpacity style={styles.deleteBackdrop} onPress={() => setDeleteTarget(null)} />
+          <View style={styles.deleteSheet}>
+            <Text style={styles.deleteTitle}>Söhbəti sil</Text>
+            <TouchableOpacity style={styles.deleteOption} onPress={() => deleteForMe(deleteTarget)}>
+              <Text style={styles.deleteOptionText}>Mənim üçün sil</Text>
+              <Text style={styles.deleteOptionDesc}>Yalnız sizin siyahınızdan silinər</Text>
+            </TouchableOpacity>
+            <View style={styles.deleteDivider} />
+            <TouchableOpacity style={styles.deleteOption} onPress={() => deleteForEveryone(deleteTarget)}>
+              <Text style={[styles.deleteOptionText, { color: '#FF4444' }]}>Hamı üçün sil</Text>
+              <Text style={styles.deleteOptionDesc}>Hər kəs üçün silinər, geri qaytarıla bilməz</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteCancel} onPress={() => setDeleteTarget(null)}>
+              <Text style={styles.deleteCancelText}>Ləğv et</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </LinearGradient>
   );
 }
@@ -167,4 +204,18 @@ const styles = StyleSheet.create({
   lastMsg: { color: colors.textMuted, fontSize: fonts.sizes.sm, marginTop: 2 },
   time: { color: colors.textMuted, fontSize: fonts.sizes.xs, marginLeft: 8 },
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 60 },
+
+  deleteOverlay: { position: 'absolute', inset: 0, justifyContent: 'flex-end' },
+  deleteBackdrop: { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
+  deleteSheet: {
+    backgroundColor: '#1E1E3A', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 20, paddingBottom: 40, paddingHorizontal: 20,
+  },
+  deleteTitle: { color: colors.text, fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 20 },
+  deleteOption: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, backgroundColor: '#2A2A4A', marginBottom: 8 },
+  deleteOptionText: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  deleteOptionDesc: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  deleteDivider: { height: 1, backgroundColor: '#3A3A5A', marginVertical: 4 },
+  deleteCancel: { paddingVertical: 14, borderRadius: 12, backgroundColor: '#2A2A4A', alignItems: 'center', marginTop: 8 },
+  deleteCancelText: { color: colors.textMuted, fontSize: 16, fontWeight: '600' },
 });

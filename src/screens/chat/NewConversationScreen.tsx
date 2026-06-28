@@ -42,15 +42,20 @@ export default function NewConversationScreen({ navigation }: any) {
       }
     }
 
-    const { data: conv, error } = await supabase.from('conversations').insert({}).select().single();
-    if (error || !conv) return Alert.alert('Xeta', 'Chat yaradila bilmedi');
+    const convId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+    const { error: cError } = await supabase.from('conversations').insert({ id: convId });
+    if (cError) return Alert.alert('Xeta', 'Chat yaradila bilmedi: ' + cError.message);
 
-    await supabase.from('conversation_participants').insert([
-      { conversation_id: conv.id, user_id: user!.id },
-      { conversation_id: conv.id, user_id: otherUserId },
+    const { error: pError } = await supabase.from('conversation_participants').insert([
+      { conversation_id: convId, user_id: user!.id },
+      { conversation_id: convId, user_id: otherUserId },
     ]);
+    if (pError) return Alert.alert('Xeta', 'Istifadeci elave edile bilmedi: ' + pError.message);
 
-    navigation.replace('ChatScreen', { conversationId: conv.id, otherUser: users.find(u => u.id === otherUserId) });
+    navigation.replace('ChatScreen', { conversationId: convId, otherUser: users.find(u => u.id === otherUserId) });
   }
 
   return (

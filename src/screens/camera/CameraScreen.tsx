@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
+import { uriToArrayBuffer } from '../../lib/storage';
 import { useAuth } from '../../lib/auth';
 import { FILTERS, STICKERS } from '../../constants/filters';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,9 +57,8 @@ export default function CameraScreen({ navigation }: any) {
         finalUri, [{ resize: { width: 1080 } }], { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
       const fileName = `camera_${user!.id}_${Date.now()}.jpg`;
-      const response = await fetch(compressed.uri);
-      const blob = await response.blob();
-      const { error: uploadError } = await supabase.storage.from('post-images').upload(fileName, blob, { contentType: 'image/jpeg' });
+      const arrayBuffer = await uriToArrayBuffer(compressed.uri);
+      const { error: uploadError } = await supabase.storage.from('post-images').upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('post-images').getPublicUrl(fileName);
 
@@ -85,9 +85,8 @@ export default function CameraScreen({ navigation }: any) {
         finalUri, [{ resize: { width: 1080 } }], { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
       const fileName = `story_${user!.id}_${Date.now()}.jpg`;
-      const response = await fetch(compressed.uri);
-      const blob = await response.blob();
-      await supabase.storage.from('stories').upload(fileName, blob, { contentType: 'image/jpeg' });
+      const arrayBuffer = await uriToArrayBuffer(compressed.uri);
+      await supabase.storage.from('stories').upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
       const { data: urlData } = supabase.storage.from('stories').getPublicUrl(fileName);
 
       await supabase.from('stories').insert({

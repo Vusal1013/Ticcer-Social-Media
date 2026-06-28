@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, FlatList, TouchableOpacity, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import ReelItem from '../../components/ReelItem';
@@ -12,6 +13,7 @@ export default function ReelsScreen({ navigation }: any) {
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [focused, setFocused] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
   async function fetchReels() {
@@ -31,6 +33,11 @@ export default function ReelsScreen({ navigation }: any) {
 
   useEffect(() => { fetchReels(); }, []);
 
+  useFocusEffect(useCallback(() => {
+    setFocused(true);
+    return () => setFocused(false);
+  }, []));
+
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
       setActiveIndex(viewableItems[0].index ?? 0);
@@ -40,8 +47,8 @@ export default function ReelsScreen({ navigation }: any) {
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 70 }).current;
 
   const renderReel = useCallback(({ item, index }: { item: Reel; index: number }) => (
-    <ReelItem reel={item} isActive={index === activeIndex} />
-  ), [activeIndex]);
+    <ReelItem reel={item} isActive={index === activeIndex && focused} />
+  ), [activeIndex, focused]);
 
   return (
     <View style={styles.container}>

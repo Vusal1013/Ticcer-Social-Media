@@ -85,22 +85,23 @@ export default function FeedScreen({ navigation }: any) {
 
   useEffect(() => {
     fetchPosts();
-    const channel = supabase.channel('feed-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => fetchPosts())
-      .subscribe((status) => {
-        if (status !== 'SUBSCRIBED') console.warn('Realtime feed status:', status);
-      });
-    return () => { supabase.removeChannel(channel); };
+    const interval = setInterval(fetchPosts, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    const notifChannel = supabase.channel('notifications-toast')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload) => { if (payload.new) showToast(payload.new as AppNotification); }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(notifChannel); };
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('read', false)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (data?.[0]) showToast(data[0] as AppNotification);
+    }, 15000);
+    return () => clearInterval(interval);
   }, [user]);
 
   useFocusEffect(useCallback(() => {

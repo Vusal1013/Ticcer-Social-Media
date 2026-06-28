@@ -24,23 +24,8 @@ export default function VoiceChannelScreen({ route, navigation }: any) {
     setAudioModeAsync({ playsInSilentMode: true });
     fetchParticipants();
 
-    const sub = supabase.channel(`voice-${channel.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_participants', filter: `channel_id=eq.${channel.id}` },
-        (payload) => {
-          const oldCount = previousCountRef.current;
-          fetchParticipants().then(() => {
-            const newCount = previousCountRef.current;
-            if (newCount > oldCount && payload.eventType === 'INSERT' && payload.new?.user_id !== user!.id) {
-              playSound(GIRIS_SES_URL);
-            }
-            if (newCount < oldCount && payload.eventType === 'DELETE') {
-              playSound(CIKIS_SES_URL);
-            }
-          });
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(sub); cleanup(); };
+    const interval = setInterval(fetchParticipants, 10000);
+    return () => { clearInterval(interval); cleanup(); };
   }, []);
 
   async function playSound(uri: string) {
