@@ -132,7 +132,22 @@ export default function PostDetailScreen({ route, navigation }: any) {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   });
 
+  async function deleteComment(id: string) {
+    Alert.alert('Commenti sil', 'Bu comment silinsin?', [
+      { text: 'Legv et', style: 'cancel' },
+      { text: 'Sil', style: 'destructive', onPress: async () => {
+        await supabase.from('post_comments').delete().eq('id', id);
+        fetchComments();
+      }},
+    ]);
+  }
+
+  function canDeleteComment(commentUserId: string) {
+    return commentUserId === user?.id || post.user_id === user?.id;
+  }
+
   function renderComment(comment: Comment, isReply: boolean = false) {
+    const showDelete = canDeleteComment(comment.user_id);
     return (
       <View key={comment.id} style={[styles.comment, { backgroundColor: colors.surface }, isReply && styles.replyComment]}>
         <View style={[styles.commentAvatar, styles.commentAvatarPlaceholder, { backgroundColor: colors.primary }]}>
@@ -141,9 +156,16 @@ export default function PostDetailScreen({ route, navigation }: any) {
         <View style={styles.commentBody}>
           <Text style={[styles.commentName, { color: colors.text }]}>{comment.profile?.full_name}</Text>
           <Text style={[styles.commentText, { color: colors.textSecondary }]}>{comment.content}</Text>
-          <TouchableOpacity onPress={() => setReplyTo(comment)}>
-            <Text style={[styles.replyBtn, { color: colors.primary }]}>Cavabla</Text>
-          </TouchableOpacity>
+          <View style={styles.commentActions}>
+            <TouchableOpacity onPress={() => setReplyTo(comment)}>
+              <Text style={[styles.replyBtn, { color: colors.primary }]}>Cavabla</Text>
+            </TouchableOpacity>
+            {showDelete && (
+              <TouchableOpacity onPress={() => deleteComment(comment.id)} style={styles.deleteCommentBtn}>
+                <Ionicons name="trash-outline" size={14} color={colors.error} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -168,26 +190,41 @@ export default function PostDetailScreen({ route, navigation }: any) {
         keyExtractor={item => item.id}
         ListHeaderComponent={
           <View style={[styles.postCard, { backgroundColor: colors.card }]}>
-            <TouchableOpacity
-              style={styles.headerRow}
-              onPress={() => {
-                if (post.profile?.id) navigation.navigate('ProfileTab', { screen: 'ProfileMain', params: { userId: post.profile.id } });
-              }}
-              activeOpacity={0.7}
-            >
-              {post.profile?.avatar_url ? (
-                <Image source={{ uri: post.profile.avatar_url }} style={styles.postAvatar} />
-              ) : (
-                <View style={[styles.postAvatar, styles.postAvatarPlaceholder, { backgroundColor: colors.primary }]}>
-                  <Text style={[styles.postAvatarLetter, { color: colors.white }]}>{(post.profile?.full_name || '?')[0]}</Text>
+            <View style={styles.headerRow}>
+              <TouchableOpacity
+                style={styles.headerRowInner}
+                onPress={() => {
+                  if (post.profile?.id) navigation.navigate('ProfileTab', { screen: 'ProfileMain', params: { userId: post.profile.id } });
+                }}
+                activeOpacity={0.7}
+              >
+                {post.profile?.avatar_url ? (
+                  <Image source={{ uri: post.profile.avatar_url }} style={styles.postAvatar} />
+                ) : (
+                  <View style={[styles.postAvatar, styles.postAvatarPlaceholder, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.postAvatarLetter, { color: colors.white }]}>{(post.profile?.full_name || '?')[0]}</Text>
+                  </View>
+                )}
+                <View style={styles.headerInfo}>
+                  <Text style={[styles.postName, { color: colors.text }]}>{post.profile?.full_name || 'Adsız'}</Text>
+                  <Text style={[styles.postHandle, { color: colors.primary }]}>@{post.profile?.username}</Text>
+                  <Text style={[styles.postTime, { color: colors.textMuted }]}>{timeAgo}</Text>
                 </View>
+              </TouchableOpacity>
+              {user && post.user_id === user.id && (
+                <TouchableOpacity onPress={() => {
+                  Alert.alert('Postu sil', 'Bu post silinsin?', [
+                    { text: 'Legv et', style: 'cancel' },
+                    { text: 'Sil', style: 'destructive', onPress: async () => {
+                      await supabase.from('posts').delete().eq('id', post.id);
+                      navigation.goBack();
+                    }},
+                  ]);
+                }} style={styles.postDeleteBtn}>
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                </TouchableOpacity>
               )}
-              <View style={styles.headerInfo}>
-                <Text style={[styles.postName, { color: colors.text }]}>{post.profile?.full_name || 'Adsız'}</Text>
-                <Text style={[styles.postHandle, { color: colors.primary }]}>@{post.profile?.username}</Text>
-                <Text style={[styles.postTime, { color: colors.textMuted }]}>{timeAgo}</Text>
-              </View>
-            </TouchableOpacity>
+            </View>
 
             <Text style={[styles.postContent, { color: colors.text }]}>{post.content}</Text>
 
@@ -320,7 +357,9 @@ const styles = StyleSheet.create({
   backText: { fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
   list: { paddingBottom: 120 },
   postCard: { margin: 16, borderRadius: 16, padding: 16, marginBottom: 8 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  headerRowInner: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  postDeleteBtn: { padding: 4, marginLeft: 8 },
   postAvatar: { width: 44, height: 44, borderRadius: 22 },
   postAvatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   postAvatarLetter: { fontSize: 18, fontWeight: fonts.weights.bold },
@@ -345,6 +384,8 @@ const styles = StyleSheet.create({
   commentName: { fontWeight: fonts.weights.semibold, fontSize: fonts.sizes.sm },
   commentText: { fontSize: fonts.sizes.sm, marginTop: 2 },
   replyBtn: { fontSize: fonts.sizes.xs, marginTop: 4, fontWeight: fonts.weights.semibold },
+  commentActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  deleteCommentBtn: { padding: 4 },
   empty: { textAlign: 'center', marginTop: 30, fontSize: fonts.sizes.md },
   inputRow: {
     flexDirection: 'row', padding: 8, paddingBottom: 70, borderTopWidth: 1, alignItems: 'flex-end', gap: 8,

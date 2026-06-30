@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
@@ -32,6 +32,18 @@ export default function NotificationsScreen({ navigation }: any) {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   }
 
+  async function deleteAll() {
+    Alert.alert('Bildirisleri sil', 'Butun bildirisler silinsin?', [
+      { text: 'Legv et', style: 'cancel' },
+      {
+        text: 'Sil', style: 'destructive', onPress: async () => {
+          await supabase.from('notifications').delete().eq('user_id', user!.id);
+          setNotifications([]);
+        },
+      },
+    ]);
+  }
+
   useFocusEffect(useCallback(() => {
     fetchNotifications();
   }, [user]));
@@ -53,12 +65,16 @@ export default function NotificationsScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[styles.backBtn, { color: colors.primary }]}>Geri</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Bildirişlər</Text>
-        <View style={{ width: 40 }} />
+        <Text style={[styles.title, { color: colors.text }]}>Bildirislər</Text>
+        {notifications.length > 0 && (
+          <TouchableOpacity onPress={deleteAll}>
+            <Text style={[styles.deleteBtn, { color: colors.error }]}>Hamısını sil</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>Yüklənir...</Text>
+        <Text style={[styles.emptyText, { color: colors.textMuted }]}>Yuklenir...</Text>
       ) : (
         <FlatList
           data={notifications}
@@ -81,7 +97,7 @@ export default function NotificationsScreen({ navigation }: any) {
             </TouchableOpacity>
           )}
           ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>Bildiriş yoxdur</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>Bildiris yoxdur</Text>
           }
         />
       )}
@@ -97,6 +113,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { fontSize: fonts.sizes.md, fontWeight: fonts.weights.semibold },
   title: { fontSize: fonts.sizes.xl, fontWeight: fonts.weights.bold },
+  deleteBtn: { fontSize: fonts.sizes.sm, fontWeight: fonts.weights.semibold },
   list: { padding: 16 },
   notifItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1 },
   notifIcon: { fontSize: 24, marginRight: 12 },

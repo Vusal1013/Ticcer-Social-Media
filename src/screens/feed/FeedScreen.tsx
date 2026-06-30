@@ -21,6 +21,7 @@ export default function FeedScreen({ navigation }: any) {
   const [storyIndex, setStoryIndex] = useState(0);
   const [storyVisible, setStoryVisible] = useState(false);
   const [toast, setToast] = useState<AppNotification | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const toastAnim = useRef(new Animated.Value(-100)).current;
 
   function showToast(notification: AppNotification) {
@@ -92,17 +93,37 @@ export default function FeedScreen({ navigation }: any) {
   useEffect(() => {
     if (!user) return;
     const interval = setInterval(async () => {
-      const { data } = await supabase
+      const { data: notifs } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .eq('read', false)
         .order('created_at', { ascending: false })
         .limit(1);
-      if (data?.[0]) showToast(data[0] as AppNotification);
+      if (notifs?.[0]) showToast(notifs[0] as AppNotification);
+
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+      if (count !== null) setUnreadCount(count);
     }, 15000);
     return () => clearInterval(interval);
   }, [user]);
+
+  useFocusEffect(useCallback(() => {
+    fetchPosts();
+    if (user) {
+      supabase.from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false)
+        .then(({ count }) => {
+          if (count !== null) setUnreadCount(count);
+        });
+    }
+  }, [user]));
 
   useFocusEffect(useCallback(() => {
     fetchPosts();
@@ -119,9 +140,19 @@ export default function FeedScreen({ navigation }: any) {
           <Ionicons name="camera-outline" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.logo, { color: colors.primary }]}>Ticcer</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('ConversationsList')} style={styles.headerBtn}>
-          <Ionicons name="paper-plane-outline" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.headerBtn}>
+            <Ionicons name="notifications-outline" size={24} color={colors.text} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('ConversationsList')} style={styles.headerBtn}>
+            <Ionicons name="paper-plane-outline" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {toast && (
@@ -189,6 +220,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 60, paddingBottom: 12, borderBottomWidth: 1,
   },
   headerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  headerRight: { flexDirection: 'row', gap: 4 },
+  badge: { position: 'absolute', top: -2, right: -4, backgroundColor: '#FF4757', borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  badgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '700' },
   logo: { fontSize: fonts.sizes.xl, fontWeight: fonts.weights.bold },
   toast: {
     flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12,

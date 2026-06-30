@@ -125,6 +125,19 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
           </View>
           <Text style={[styles.handle, { color: colors.textMuted }]}>@{post.profile?.username} · {timeAgo}</Text>
         </View>
+        {user && post.user_id === user.id && (
+          <TouchableOpacity onPress={() => {
+            Alert.alert('Postu sil', 'Bu post silinsin?', [
+              { text: 'Legv et', style: 'cancel' },
+              { text: 'Sil', style: 'destructive', onPress: async () => {
+                await supabase.from('posts').delete().eq('id', post.id);
+                onRefresh?.();
+              }},
+            ]);
+          }} style={styles.deleteBtn}>
+            <Ionicons name="trash-outline" size={18} color={colors.error} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text style={[styles.content, { color: colors.text }]}>
@@ -214,6 +227,7 @@ const styles = StyleSheet.create({
   avatarLetter: { fontSize: 16, fontWeight: fonts.weights.bold },
   headerInfo: { marginLeft: 10, flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  deleteBtn: { padding: 4, marginLeft: 8 },
   name: { fontWeight: fonts.weights.semibold, fontSize: fonts.sizes.sm },
   handle: { fontSize: fonts.sizes.xs, marginTop: 1 },
   content: { fontSize: fonts.sizes.md, lineHeight: 22, marginBottom: 12 },

@@ -334,10 +334,15 @@ CREATE POLICY "Users can delete own stories" ON stories FOR DELETE USING (user_i
 CREATE POLICY "Users can view their conversations" ON conversations FOR SELECT
   USING (EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = id AND user_id = auth.uid()));
 
+CREATE OR REPLACE FUNCTION is_conversation_member(conv_id UUID)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM conversation_participants WHERE conversation_id = conv_id AND user_id = auth.uid()
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
 CREATE POLICY "Users can view their conversation participants" ON conversation_participants FOR SELECT
-  USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM conversation_participants cp WHERE cp.conversation_id = conversation_id AND cp.user_id = auth.uid()
-  ));
+  USING (user_id = auth.uid() OR is_conversation_member(conversation_id));
 
 CREATE POLICY "Users can send messages" ON messages FOR INSERT
   WITH CHECK (

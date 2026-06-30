@@ -44,6 +44,15 @@ export default function ConversationsListScreen({ navigation, route }: any) {
       .in('conversation_id', convIds)
       .order('created_at', { ascending: false });
 
+    if (messages && user) {
+      const undeliveredIds = messages
+        .filter(m => m.sender_id !== user.id && !m.delivered_at)
+        .map(m => m.id);
+      if (undeliveredIds.length > 0) {
+        supabase.from('messages').update({ delivered_at: new Date().toISOString() }).in('id', undeliveredIds);
+      }
+    }
+
     if (otherParticipants && messages) {
       const lastMessages = new Map<string, any>();
       messages.forEach(msg => {
@@ -54,10 +63,12 @@ export default function ConversationsListScreen({ navigation, route }: any) {
 
       const list: Conversation[] = otherParticipants.map((p: any) => {
         const last = lastMessages.get(p.conversation_id);
+        let lastMsg = last?.content ?? null;
+        if (!lastMsg && last?.audio_url) lastMsg = '🎤 Sesli mesaj';
         return {
           id: p.conversation_id,
           other_user: p.profile,
-          last_message: last?.content ?? null,
+          last_message: lastMsg,
           last_message_time: last?.created_at ?? null,
         };
       });
@@ -115,13 +126,16 @@ export default function ConversationsListScreen({ navigation, route }: any) {
       onPress={() => handleConversationPress(item)}
       onLongPress={() => setDeleteTarget(item.id)}
     >
-      {item.other_user?.avatar_url ? (
-        <Image source={{ uri: item.other_user.avatar_url }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, styles.avatarPlaceholder]}>
-          <Text style={styles.avatarLetter}>{(item.other_user?.full_name || '?')[0]}</Text>
-        </View>
-      )}
+      <View>
+        {item.other_user?.avatar_url ? (
+          <Image source={{ uri: item.other_user.avatar_url }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+            <Text style={styles.avatarLetter}>{(item.other_user?.full_name || '?')[0]}</Text>
+          </View>
+        )}
+        {item.other_user?.is_online && <View style={styles.onlineDot} />}
+      </View>
       <View style={styles.convInfo}>
         <Text style={styles.name}>{item.other_user?.full_name || 'Adsiz'}</Text>
         <Text style={styles.lastMsg} numberOfLines={1}>
@@ -199,6 +213,7 @@ const styles = StyleSheet.create({
   avatar: { width: 50, height: 50, borderRadius: 25 },
   avatarPlaceholder: { backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   avatarLetter: { color: colors.white, fontSize: 20, fontWeight: '700' },
+  onlineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#2ED573', position: 'absolute', bottom: 0, right: 0, borderWidth: 2, borderColor: colors.surface },
   convInfo: { flex: 1, marginLeft: 12 },
   name: { color: colors.text, fontWeight: '600', fontSize: fonts.sizes.md },
   lastMsg: { color: colors.textMuted, fontSize: fonts.sizes.sm, marginTop: 2 },

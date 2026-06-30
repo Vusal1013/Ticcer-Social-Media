@@ -206,11 +206,23 @@ sosial-media-app/
 
 ### Phase 16 — Push Notifications ✅
 - [x] Expo push token qeydiyyati (profiles.expo_push_token)
-- [x] OneSignal Edge Function (`supabase/functions/send-notification/`)
-- [x] Edge Function həm OneSignal, həm Expo Push API destekleyir
+- [x] Edge Function (`supabase/functions/send-notification/`) Expo Push API istifadə edir
 - [x] Webhook formatinda DB trigger payload-larini qebul edir
-- [x] Bildirim tercihlerine gore filtreleme (likes/comments/follows/mentions)
+- [x] Bildirim tercihlerine gore filtreleme (likes/comments/follows/mentions/messages)
 - [x] `notification_preferences` tablosu (likes/comments/follows/mentions/messages)
+- [x] `react-native-onesignal` paketi silindi (istifadə olunmur)
+- [x] Edge Function düzəlişi: webhook-dan `type` düzgün oxunur (`payload.record.type`)
+- [x] Edge Function düzəlişi: `payload.record.data` düzgün istifadə olunur (bütün record yox)
+- [x] Edge Function düzəlişi: push mesajına `priority: 'high'` əlavə edildi
+- [x] Edge Function düzəlişi: Expo push səhv cavabları daha ətraflı loglanir
+- [x] Android notification channel `general` (MAX importance) – `default` əvəzinə
+- [x] Android notification icon config `app.json`-da təyin edildi
+- [x] `setupNotificationListeners()` – `addNotificationReceivedListener` + `addNotificationResponseReceivedListener`
+- [x] Bildiriş toxunanda deep link (`ticcer://post/:id`, `ticcer://message/:id`)
+- [x] DB trigger `notify_message()` – mesajlara görə bildiriş
+- [x] 500ms gecikmə silindi (push token alınmasında)
+- [x] Firebase Service Account JSON Expo Dashboard-a yükləndi (FCM V1)
+- [x] Migration-da çatışmayan `DROP POLICY` sətirləri əlavə edildi
 
 ### Phase 17 — In-App Notifications ✅
 - [x] `notifications` tablosu (bildiriş tarixçəsi)

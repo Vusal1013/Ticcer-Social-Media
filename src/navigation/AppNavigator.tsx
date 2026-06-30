@@ -30,6 +30,7 @@ import AdminPanelScreen from '../screens/admin/AdminPanelScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import { fonts } from '../constants/theme';
+import { usePresence } from '../lib/presence';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -98,6 +99,7 @@ function TabBarIcon({ iconName, color }: { iconName: keyof typeof Ionicons.glyph
 
 function MainTabs() {
   const { colors } = useTheme();
+  usePresence();
 
   return (
     <Tab.Navigator
