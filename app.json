@@ -22,6 +22,9 @@
     "android": {
       "package": "com.ticcer.app",
       "googleServicesFile": "./google-services.json",
+      "notification": {
+        "color": "#0F0F23"
+      },
       "adaptiveIcon": {
         "backgroundColor": "#0F0F23",
         "foregroundImage": "./assets/android-icon-foreground.png",

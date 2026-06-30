@@ -6,11 +6,15 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from './src/lib/auth';
 import { ThemeProvider, useTheme } from './src/lib/theme';
-import { setupNotifications } from './src/lib/notifications';
+import { setupNotifications, setupNotificationListeners } from './src/lib/notifications';
 import AppNavigator from './src/navigation/AppNavigator';
 
 function NotificationsGate({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+
+  useEffect(() => {
+    setupNotificationListeners();
+  }, []);
 
   useEffect(() => {
     if (user?.id) setupNotifications(user.id);

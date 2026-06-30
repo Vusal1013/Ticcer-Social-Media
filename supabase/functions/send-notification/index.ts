@@ -23,8 +23,11 @@ async function sendViaExpo(userIds: string[], title: string, body: string, data:
       title,
       body,
       data,
-      channelId: 'default',
+      channelId: 'general',
+      priority: 'high',
     }));
+
+  console.log(`Profiles with tokens: ${profiles.length}, messages: ${messages.length}`);
 
   const res = await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
@@ -35,8 +38,12 @@ async function sendViaExpo(userIds: string[], title: string, body: string, data:
   const result = await res.json();
   console.log('Expo push response:', JSON.stringify(result));
 
-  if (result?.data?.errors) {
-    console.error('Expo push errors:', JSON.stringify(result.data.errors));
+  if (result?.data) {
+    for (const ticket of result.data) {
+      if (ticket.status === 'error') {
+        console.error('Expo push ticket error:', JSON.stringify(ticket));
+      }
+    }
   }
 
   return result;
@@ -50,7 +57,7 @@ serve(async (req) => {
     const userIds = payload.userIds || (payload.type === 'INSERT' && payload.record ? [payload.record.user_id] : []);
     const title = payload.title || 'Ticcer';
     const body = payload.body || 'Yeni bildiriş';
-    const data = payload.data || payload.record || {};
+    const data = payload.data || payload.record?.data || {};
 
     if (!userIds?.length) {
       return new Response(JSON.stringify({ error: 'No recipients' }), { status: 400 });
@@ -62,7 +69,7 @@ serve(async (req) => {
       .select('user_id, likes, comments, follows, mentions')
       .in('user_id', userIds);
 
-    const type = payload.type === 'INSERT' ? payload.table?.replace('post_', '') : payload.notificationType;
+    const type = payload.notificationType || payload.record?.type;
     const prefMap = new Map((prefs || []).map((p: any) => [p.user_id, p]));
 
     const filteredUserIds = userIds.filter((uid: string) => {
@@ -72,6 +79,7 @@ serve(async (req) => {
       if (type === 'comment' && !pref.comments) return false;
       if (type === 'follow' && !pref.follows) return false;
       if (type === 'mention' && !pref.mentions) return false;
+      if (type === 'message' && !pref.messages) return false;
       return true;
     });
 

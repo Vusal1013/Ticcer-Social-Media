@@ -288,11 +288,14 @@ DROP POLICY IF EXISTS "Users can view their conversations" ON conversations;
 DROP POLICY IF EXISTS "Users can view their conversation participants" ON conversation_participants;
 DROP POLICY IF EXISTS "Users can send messages" ON messages;
 DROP POLICY IF EXISTS "Users can view messages in their conversations" ON messages;
+DROP POLICY IF EXISTS "Users can delete messages in their conversations" ON messages;
 DROP POLICY IF EXISTS "Communities are viewable by everyone" ON communities;
 DROP POLICY IF EXISTS "Users can create communities" ON communities;
 DROP POLICY IF EXISTS "Members can view channels" ON community_channels;
 DROP POLICY IF EXISTS "Members can view channel messages" ON channel_messages;
 DROP POLICY IF EXISTS "Members can send channel messages" ON channel_messages;
+DROP POLICY IF EXISTS "Users can delete own participation" ON conversation_participants;
+DROP POLICY IF EXISTS "Users can delete conversations they are in" ON conversations;
 DROP POLICY IF EXISTS "Admins can update any profile" ON profiles;
 
 CREATE POLICY "Profiles are viewable by everyone" ON profiles FOR SELECT USING (true);
@@ -426,7 +429,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.notifications (user_id, type, title, body, data)
   SELECT p.user_id, 'like', 'Yeni bəyənmə', (SELECT full_name FROM profiles WHERE id = NEW.user_id) || ' postunuzu bəyəndi',
-    jsonb_build_object('post_id', NEW.post_id, 'actor_id', NEW.user_id)
+    jsonb_build_object('post_id', NEW.post_id, 'actor_id', NEW.user_id, 'route', 'ticcer://post/' || NEW.post_id)
   FROM posts p WHERE p.id = NEW.post_id AND p.user_id != NEW.user_id;
   RETURN NEW;
 END;
@@ -442,7 +445,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.notifications (user_id, type, title, body, data)
   SELECT p.user_id, 'comment', 'Yeni şərh', (SELECT full_name FROM profiles WHERE id = NEW.user_id) || ' postunuza şərh yazdı',
-    jsonb_build_object('post_id', NEW.post_id, 'comment_id', NEW.id, 'actor_id', NEW.user_id)
+    jsonb_build_object('post_id', NEW.post_id, 'comment_id', NEW.id, 'actor_id', NEW.user_id, 'route', 'ticcer://post/' || NEW.post_id)
   FROM posts p WHERE p.id = NEW.post_id AND p.user_id != NEW.user_id;
   RETURN NEW;
 END;
@@ -458,7 +461,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.notifications (user_id, type, title, body, data)
   VALUES (NEW.following_id, 'follow', 'Yeni izləyici', (SELECT full_name FROM profiles WHERE id = NEW.follower_id) || ' sizi izləməyə başladı',
-    jsonb_build_object('actor_id', NEW.follower_id));
+    jsonb_build_object('actor_id', NEW.follower_id, 'route', 'ticcer://profile/' || NEW.follower_id));
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -473,7 +476,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.notifications (user_id, type, title, body, data)
   VALUES (NEW.user_id, 'mention', 'Sizdən bəhs edildi', (SELECT full_name FROM profiles WHERE id IN (SELECT user_id FROM posts WHERE id = NEW.post_id)) || ' sizi qeyd etdi',
-    jsonb_build_object('post_id', NEW.post_id, 'actor_id', (SELECT user_id FROM posts WHERE id = NEW.post_id)));
+    jsonb_build_object('post_id', NEW.post_id, 'actor_id', (SELECT user_id FROM posts WHERE id = NEW.post_id), 'route', 'ticcer://post/' || NEW.post_id));
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -482,3 +485,21 @@ DROP TRIGGER IF EXISTS on_mention_insert ON mentions;
 CREATE TRIGGER on_mention_insert
   AFTER INSERT ON mentions
   FOR EACH ROW EXECUTE FUNCTION notify_mention();
+
+CREATE OR REPLACE FUNCTION notify_message()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.notifications (user_id, type, title, body, data)
+  SELECT cp.user_id, 'message', (SELECT full_name FROM profiles WHERE id = NEW.sender_id),
+    LEFT(NEW.content, 50),
+    jsonb_build_object('conversation_id', NEW.conversation_id, 'sender_id', NEW.sender_id, 'route', 'ticcer://message/' || NEW.conversation_id)
+  FROM conversation_participants cp
+  WHERE cp.conversation_id = NEW.conversation_id AND cp.user_id != NEW.sender_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_message_insert ON messages;
+CREATE TRIGGER on_message_insert
+  AFTER INSERT ON messages
+  FOR EACH ROW EXECUTE FUNCTION notify_message();
