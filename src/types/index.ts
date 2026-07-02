@@ -16,7 +16,7 @@ export type Profile = {
   full_name: string;
   avatar_url: string | null;
   bio: string | null;
-  verified: boolean;
+  verified_type: 'none' | 'gray' | 'gold' | 'red';
   role: 'user' | 'admin';
   created_at: string;
 };

@@ -6,6 +6,7 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', tru
 INSERT INTO storage.buckets (id, name, public) VALUES ('post-images', 'post-images', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('reels', 'reels', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('stories', 'stories', true) ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('gold-requests', 'gold-requests', true) ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Anyone can view avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Users can upload avatars" ON storage.objects;
@@ -54,6 +55,14 @@ CREATE TABLE IF NOT EXISTS profiles (
   expo_push_token TEXT
 );
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS expo_push_token TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS verified_type TEXT DEFAULT 'gray';
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_verified_type_check;
+ALTER TABLE profiles ADD CONSTRAINT profiles_verified_type_check CHECK (verified_type IN ('none', 'gray', 'gold', 'red'));
+
+-- Migrate existing verified=true to verified_type='gray' for backward compatibility
+UPDATE profiles SET verified_type = 'gray' WHERE verified = true AND verified_type = 'none';
+-- Auto-set verified_type='red' for existing admins
+UPDATE profiles SET verified_type = 'red' WHERE role = 'admin' AND verified_type = 'none';
 
 CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -164,8 +173,10 @@ CREATE TABLE IF NOT EXISTS messages (
   sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   content TEXT,
   image_url TEXT,
+  metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS metadata JSONB;
 
 CREATE TABLE IF NOT EXISTS communities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -209,6 +220,28 @@ CREATE TABLE IF NOT EXISTS saved_posts (
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  content_type TEXT NOT NULL CHECK (content_type IN ('post', 'reel', 'message')),
+  content_id UUID NOT NULL,
+  reason TEXT NOT NULL CHECK (reason IN ('spam', 'harassment', 'hate_speech', 'nudity', 'violence', 'copyright', 'other')),
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  admin_note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS gold_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  full_name TEXT NOT NULL,
+  dob TEXT NOT NULL,
+  passport_image_url TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS notification_preferences (
@@ -255,6 +288,8 @@ ALTER TABLE community_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_channels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE channel_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gold_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
@@ -394,6 +429,32 @@ CREATE POLICY "Users can view own saved posts" ON saved_posts FOR SELECT USING (
 CREATE POLICY "Users can save posts" ON saved_posts FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "Users can unsave posts" ON saved_posts FOR DELETE USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert reports" ON reports;
+DROP POLICY IF EXISTS "Admins can view all reports" ON reports;
+DROP POLICY IF EXISTS "Admins can update reports" ON reports;
+
+CREATE POLICY "Users can insert reports" ON reports FOR INSERT WITH CHECK (reporter_id = auth.uid());
+CREATE POLICY "Admins can view all reports" ON reports FOR SELECT USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND (role = 'admin' OR verified_type = 'red'))
+);
+CREATE POLICY "Admins can update reports" ON reports FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND (role = 'admin' OR verified_type = 'red'))
+);
+
+DROP POLICY IF EXISTS "Users can view own gold_requests" ON gold_requests;
+DROP POLICY IF EXISTS "Users can insert own gold_requests" ON gold_requests;
+DROP POLICY IF EXISTS "Admins can view all gold_requests" ON gold_requests;
+DROP POLICY IF EXISTS "Admins can update gold_requests" ON gold_requests;
+
+CREATE POLICY "Users can view own gold_requests" ON gold_requests FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Users can insert own gold_requests" ON gold_requests FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Admins can view all gold_requests" ON gold_requests FOR SELECT USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND (role = 'admin' OR verified_type = 'red'))
+);
+CREATE POLICY "Admins can update gold_requests" ON gold_requests FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND (role = 'admin' OR verified_type = 'red'))
+);
+
 DROP POLICY IF EXISTS "Users can view own notification preferences" ON notification_preferences;
 DROP POLICY IF EXISTS "Users can insert own notification preferences" ON notification_preferences;
 DROP POLICY IF EXISTS "Users can update own notification preferences" ON notification_preferences;
@@ -404,9 +465,13 @@ CREATE POLICY "Users can update own notification preferences" ON notification_pr
 
 DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
 DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
+DROP POLICY IF EXISTS "Admins can insert notifications" ON notifications;
 
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "Users can update own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid());
+CREATE POLICY "Admins can insert notifications" ON notifications FOR INSERT WITH CHECK (
+  (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
+);
 
 -- ===== TRIGGER =====
 CREATE OR REPLACE FUNCTION handle_new_user()

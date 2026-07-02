@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { colors, fonts } from '../../constants/theme';
+import ReportModal from '../../components/ReportModal';
 import { useAudioRecorder, useAudioPlayer, useAudioPlayerStatus, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
 import { uploadVoice } from '../../lib/voice';
 import { formatLastSeen } from '../../lib/presence';
@@ -58,6 +59,8 @@ export default function ChatScreen({ route, navigation }: any) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDur, setRecordingDur] = useState(0);
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  const [reportTargetId, setReportTargetId] = useState<string | null>(null);
   const [recordedVoice, setRecordedVoice] = useState<{ uri: string; duration: number } | null>(null);
   const [sending, setSending] = useState(false);
   const [otherProfile, setOtherProfile] = useState<any>(otherUser);
@@ -90,6 +93,14 @@ export default function ChatScreen({ route, navigation }: any) {
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
     if (data) setMessages(data);
+  }
+
+  function handleSharedContentPress(metadata: any) {
+    if (metadata?.type === 'post') {
+      navigation.navigate('PostDetail', { post: { id: metadata.id } });
+    } else if (metadata?.type === 'reel') {
+      navigation.navigate('ReelsTab', { screen: 'ReelsMain', params: { reelId: metadata.id } });
+    }
   }
 
   useEffect(() => {
@@ -253,12 +264,14 @@ export default function ChatScreen({ route, navigation }: any) {
     const isSelected = selectedIds.has(item.id);
     const isVoice = !!item.audio_url;
     const isThisPlaying = playingMsgId === item.id && status.playing;
+    const isShared = !!item.metadata?.type && !!item.metadata?.id;
     return (
       <TouchableOpacity
         style={[styles.msgRow, isMine ? styles.myMsgRow : styles.theirMsgRow]}
         onPress={() => {
           if (selectMode) toggleSelect(item.id);
           else if (isVoice) togglePlayVoice(item.id, item.audio_url);
+          else if (isShared) handleSharedContentPress(item.metadata);
         }}
         onLongPress={() => { if (!selectMode) { setSelectMode(true); toggleSelect(item.id); } }}
         activeOpacity={selectMode ? 0.6 : 1}
@@ -268,7 +281,7 @@ export default function ChatScreen({ route, navigation }: any) {
             {isSelected && <Text style={styles.checkMark}>✓</Text>}
           </View>
         )}
-        <View style={[styles.bubble, isMine ? styles.myBubble : styles.theirBubble, isSelected && styles.selectedBubble, isVoice && styles.voiceBubble]}>
+        <View style={[styles.bubble, isMine ? styles.myBubble : styles.theirBubble, isSelected && styles.selectedBubble, isVoice && styles.voiceBubble, isShared && styles.sharedBubble]}>
           {isVoice ? (
             <View style={styles.voiceRow}>
               <Ionicons
@@ -280,6 +293,21 @@ export default function ChatScreen({ route, navigation }: any) {
               <Text style={[styles.voiceTime, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.textMuted }]}>
                 {isThisPlaying ? formatDur(status.currentTime) : formatDur(item.voice_duration)}
               </Text>
+            </View>
+          ) : isShared ? (
+            <View style={styles.sharedContent}>
+              <View style={styles.sharedHeader}>
+                <Ionicons name={item.metadata.type === 'post' ? 'document-text' : 'videocam'} size={18} color={colors.primary} />
+                <Text style={[styles.sharedLabel, { color: colors.primary }]}>
+                  Paylaşılan {item.metadata.type === 'post' ? 'post' : 'reel'}
+                </Text>
+              </View>
+              <Text style={[styles.sharedDesc, { color: isMine ? 'rgba(255,255,255,0.8)' : colors.textSecondary }]} numberOfLines={2}>
+                {item.content}
+              </Text>
+              <View style={[styles.sharedAction, { backgroundColor: isMine ? 'rgba(255,255,255,0.15)' : colors.primary + '20' }]}>
+                <Text style={[styles.sharedActionText, { color: isMine ? colors.white : colors.primary }]}>Bax →</Text>
+              </View>
             </View>
           ) : (
             <Text style={[styles.msgText, isMine ? styles.myMsgText : styles.theirMsgText]}>
@@ -347,6 +375,16 @@ export default function ChatScreen({ route, navigation }: any) {
           <TouchableOpacity style={styles.deleteAllBtn} onPress={deleteSelected}>
             <Text style={styles.deleteAllText}>Secilmisleri sil ({selectedIds.size})</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.reportBtn, selectedIds.size !== 1 && { opacity: 0.4 }]}
+            onPress={() => {
+              if (selectedIds.size !== 1) return;
+              setReportTargetId(Array.from(selectedIds)[0]);
+              setShowReport(true);
+            }}
+          >
+            <Text style={styles.reportBtnText}>Şikayət et</Text>
+          </TouchableOpacity>
         </View>
       ) : isRecording ? (
         <TouchableOpacity style={styles.recordingBar} onPress={stopVoiceRecording}>
@@ -405,6 +443,7 @@ export default function ChatScreen({ route, navigation }: any) {
           )}
         </View>
       )}
+      <ReportModal visible={showReport} onClose={() => { setShowReport(false); setSelectMode(false); setSelectedIds(new Set()); }} contentType="message" contentId={reportTargetId || ''} />
     </KeyboardAvoidingView>
   );
 }
@@ -439,8 +478,10 @@ const styles = StyleSheet.create({
   micBtn: { backgroundColor: colors.primary, borderRadius: 24, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   selectBtn: { color: colors.primary, fontSize: fonts.sizes.md, fontWeight: '600' },
   bulkBar: { padding: 12, paddingBottom: 90, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
-  deleteAllBtn: { backgroundColor: '#FF4444', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  deleteAllBtn: { backgroundColor: '#FF4444', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
   deleteAllText: { color: colors.white, fontWeight: '700', fontSize: fonts.sizes.md },
+  reportBtn: { backgroundColor: colors.primary + '30', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  reportBtnText: { color: colors.primary, fontWeight: '700', fontSize: fonts.sizes.md },
   checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.textMuted, alignItems: 'center', justifyContent: 'center', marginHorizontal: 8 },
   checkboxSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
   checkMark: { color: colors.white, fontSize: 14, fontWeight: '700' },
@@ -456,4 +497,11 @@ const styles = StyleSheet.create({
   voicePreviewInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.background, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 },
   voicePreviewText: { color: colors.text, fontSize: fonts.sizes.sm, fontWeight: '600' },
   sendVoiceBtn: { backgroundColor: colors.primary, borderRadius: 24, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  sharedBubble: { minWidth: 200, padding: 0, overflow: 'hidden' },
+  sharedContent: { padding: 12 },
+  sharedHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  sharedLabel: { fontSize: fonts.sizes.xs, fontWeight: fonts.weights.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sharedDesc: { fontSize: fonts.sizes.sm, lineHeight: 18, marginBottom: 8 },
+  sharedAction: { borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  sharedActionText: { fontSize: fonts.sizes.sm, fontWeight: fonts.weights.bold },
 });

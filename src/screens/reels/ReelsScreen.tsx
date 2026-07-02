@@ -9,7 +9,7 @@ import type { Reel } from '../../types';
 
 const { height: WINDOW_HEIGHT } = Dimensions.get('window');
 
-export default function ReelsScreen({ navigation }: any) {
+export default function ReelsScreen({ navigation, route }: any) {
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -32,6 +32,18 @@ export default function ReelsScreen({ navigation }: any) {
   }
 
   useEffect(() => { fetchReels(); }, []);
+
+  useEffect(() => {
+    const reelId = route?.params?.reelId;
+    if (reelId && reels.length > 0) {
+      const idx = reels.findIndex(r => r.id === reelId);
+      if (idx >= 0) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({ index: idx, animated: true });
+        }, 300);
+      }
+    }
+  }, [reels, route?.params?.reelId]);
 
   useFocusEffect(useCallback(() => {
     setFocused(true);

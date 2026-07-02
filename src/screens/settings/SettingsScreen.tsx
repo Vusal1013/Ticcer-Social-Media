@@ -9,7 +9,7 @@ import { fonts } from '../../constants/theme';
 import type { NotificationPreferences } from '../../types';
 
 export default function SettingsScreen({ navigation }: any) {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { colors, mode, toggleTheme } = useTheme();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
 
@@ -90,6 +90,13 @@ export default function SettingsScreen({ navigation }: any) {
           <Ionicons name="create-outline" size={20} color={colors.text} style={{ marginRight: 12 }} />
           <Text style={[styles.rowText, { color: colors.text }]}>Profili düzəlt</Text>
         </TouchableOpacity>
+
+        {profile?.verified_type === 'gray' && (
+          <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('GoldRequest')}>
+            <Ionicons name="ribbon-outline" size={20} color={colors.warning} style={{ marginRight: 12 }} />
+            <Text style={[styles.rowText, { color: colors.warning }]}>Gold istəyi göndər</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={colors.error} style={{ marginRight: 12 }} />

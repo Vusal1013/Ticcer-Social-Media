@@ -15,6 +15,9 @@ type Conversation = {
 
 export default function ConversationsListScreen({ navigation, route }: any) {
   const sharePost = route?.params?.sharePost;
+  const shareReel = route?.params?.shareReel;
+  const shareItem = sharePost || shareReel;
+  const shareType = sharePost ? 'post' : shareReel ? 'reel' : null;
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,15 +91,18 @@ export default function ConversationsListScreen({ navigation, route }: any) {
     fetchConversations();
     const interval = setInterval(fetchConversations, 10000);
     return () => clearInterval(interval);
-  }, [sharePost]);
+  }, [shareItem]);
 
   async function handleConversationPress(item: Conversation) {
-    if (sharePost) {
-      const shareLink = `https://ticcer.app/post/${sharePost.id}`;
+    if (shareItem) {
+      const isPost = shareType === 'post';
+      const preview = isPost ? sharePost.content : (shareReel.description || '');
+      const truncated = preview.length > 80 ? preview.slice(0, 80) + '...' : preview;
       await supabase.from('messages').insert({
         conversation_id: item.id,
         sender_id: user!.id,
-        content: `📨 Post: ${sharePost.content}\n🔗 ${shareLink}`,
+        content: truncated,
+        metadata: { type: shareType, id: isPost ? sharePost.id : shareReel.id },
       });
       navigation.navigate('ChatScreen', { conversationId: item.id, otherUser: item.other_user });
     } else {
@@ -153,8 +159,8 @@ export default function ConversationsListScreen({ navigation, route }: any) {
   return (
     <LinearGradient colors={['#0F0F23', '#1A1A3E']} style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>{sharePost ? 'Postu göndər' : 'Mesajlar'}</Text>
-        {!sharePost && (
+        <Text style={styles.title}>{shareItem ? 'Paylaş' : 'Mesajlar'}</Text>
+        {!shareItem && (
           <TouchableOpacity onPress={() => navigation.navigate('NewConversation')} style={styles.newBtn}>
             <Text style={styles.newBtnText}>+</Text>
           </TouchableOpacity>

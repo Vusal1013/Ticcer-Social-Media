@@ -28,6 +28,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import AdminPanelScreen from '../screens/admin/AdminPanelScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
+import GoldRequestScreen from '../screens/settings/GoldRequestScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import { fonts } from '../constants/theme';
 import { usePresence } from '../lib/presence';
@@ -87,8 +88,16 @@ function ProfileStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-      <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="GoldRequest" component={GoldRequestScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function AdminStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="AdminMain" component={AdminPanelScreen} />
     </Stack.Navigator>
   );
 }
@@ -99,7 +108,9 @@ function TabBarIcon({ iconName, color }: { iconName: keyof typeof Ionicons.glyph
 
 function MainTabs() {
   const { colors } = useTheme();
+  const { profile } = useAuth();
   usePresence();
+  const isAdmin = profile?.role === 'admin' || profile?.verified_type === 'red';
 
   return (
     <Tab.Navigator
@@ -133,6 +144,7 @@ function MainTabs() {
             SearchTab: focused ? 'search' : 'search-outline',
             ReelsTab: focused ? 'videocam' : 'videocam-outline',
             CommunityTab: focused ? 'people' : 'people-outline',
+            AdminTab: focused ? 'shield' : 'shield-outline',
             ProfileTab: focused ? 'person' : 'person-outline',
           };
           return <TabBarIcon iconName={icons[route.name] || 'help-outline'} color={color} />;
@@ -143,6 +155,9 @@ function MainTabs() {
       <Tab.Screen name="SearchTab" component={SearchStack} options={{ tabBarLabel: 'Axtar' }} />
       <Tab.Screen name="ReelsTab" component={ReelsStack} options={{ tabBarLabel: 'Reels' }} />
       <Tab.Screen name="CommunityTab" component={CommunityStack} options={{ tabBarLabel: 'Topluluq' }} />
+      {isAdmin && (
+        <Tab.Screen name="AdminTab" component={AdminStack} options={{ tabBarLabel: 'Admin' }} />
+      )}
       <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ tabBarLabel: 'Profil' }} />
     </Tab.Navigator>
   );

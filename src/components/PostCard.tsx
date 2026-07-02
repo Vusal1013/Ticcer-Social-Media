@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/theme';
 import VerifiedBadge from './VerifiedBadge';
+import ReportModal from './ReportModal';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../constants/theme';
 import type { Post } from '../types';
@@ -42,6 +43,7 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
   const [likesCount, setLikesCount] = useState(post.likes_count ?? 0);
   const [saved, setSaved] = useState(post.is_saved ?? false);
   const [showShare, setShowShare] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   function handleHashtagPress(tag: string) {
     navigation.navigate('SearchTab', { screen: 'SearchMain', params: { hashtag: tag } });
@@ -121,11 +123,11 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
         <View style={styles.headerInfo}>
           <View style={styles.nameRow}>
             <Text style={[styles.name, { color: colors.text }]}>{post.profile?.full_name || 'Adsız'}</Text>
-            {post.profile?.verified && <VerifiedBadge size={12} />}
+            {post.profile?.verified_type && post.profile?.verified_type !== 'none' && <VerifiedBadge size={12} type={post.profile?.verified_type} />}
           </View>
           <Text style={[styles.handle, { color: colors.textMuted }]}>@{post.profile?.username} · {timeAgo}</Text>
         </View>
-        {user && post.user_id === user.id && (
+        {user && post.user_id === user.id ? (
           <TouchableOpacity onPress={() => {
             Alert.alert('Postu sil', 'Bu post silinsin?', [
               { text: 'Legv et', style: 'cancel' },
@@ -136,6 +138,15 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
             ]);
           }} style={styles.deleteBtn}>
             <Ionicons name="trash-outline" size={18} color={colors.error} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => {
+            Alert.alert('', '', [
+              { text: 'Şikayət et', style: 'destructive', onPress: () => setShowReport(true) },
+              { text: 'Ləğv et', style: 'cancel' },
+            ]);
+          }} style={styles.deleteBtn}>
+            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -209,12 +220,24 @@ export default function PostCard({ post, onPress, onRefresh }: Props) {
               </View>
             </TouchableOpacity>
 
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <TouchableOpacity style={styles.sheetOption} onPress={() => { setShowShare(false); setTimeout(() => setShowReport(true), 300); }}>
+              <View style={[styles.sheetIcon, { backgroundColor: colors.error + '20' }]}>
+                <Ionicons name="flag-outline" size={22} color={colors.error} />
+              </View>
+              <View style={styles.sheetOptionText}>
+                <Text style={[styles.sheetOptionTitle, { color: colors.error }]}>Şikayət et</Text>
+                <Text style={[styles.sheetOptionDesc, { color: colors.textMuted }]}>Bu postu şikayət et</Text>
+              </View>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.cancelBtn, { borderColor: colors.border }]} onPress={() => setShowShare(false)}>
               <Text style={[styles.cancelText, { color: colors.text }]}>Ləğv et</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
+
+      <ReportModal visible={showReport} onClose={() => setShowReport(false)} contentType="post" contentId={post.id} />
     </TouchableOpacity>
   );
 }

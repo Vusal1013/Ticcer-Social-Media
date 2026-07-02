@@ -125,10 +125,6 @@ export default function FeedScreen({ navigation }: any) {
     }
   }, [user]));
 
-  useFocusEffect(useCallback(() => {
-    fetchPosts();
-  }, []));
-
   const renderPost = useCallback(({ item }: { item: Post }) => (
     <PostCard post={item} onPress={() => navigation.navigate('PostDetail', { post: item })} />
   ), [navigation]);

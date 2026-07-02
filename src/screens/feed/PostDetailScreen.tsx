@@ -10,6 +10,7 @@ import { useTheme } from '../../lib/theme';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../constants/theme';
+import ReportModal from '../../components/ReportModal';
 import type { Post } from '../../types';
 
 type Comment = {
@@ -35,6 +36,7 @@ export default function PostDetailScreen({ route, navigation }: any) {
   const [likesCount, setLikesCount] = useState(initialPost.likes_count ?? 0);
   const [saved, setSaved] = useState(initialPost.is_saved ?? false);
   const [showShare, setShowShare] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   async function fetchPost() {
     const { data } = await supabase
@@ -211,7 +213,7 @@ export default function PostDetailScreen({ route, navigation }: any) {
                   <Text style={[styles.postTime, { color: colors.textMuted }]}>{timeAgo}</Text>
                 </View>
               </TouchableOpacity>
-              {user && post.user_id === user.id && (
+              {user && post.user_id === user.id ? (
                 <TouchableOpacity onPress={() => {
                   Alert.alert('Postu sil', 'Bu post silinsin?', [
                     { text: 'Legv et', style: 'cancel' },
@@ -222,6 +224,15 @@ export default function PostDetailScreen({ route, navigation }: any) {
                   ]);
                 }} style={styles.postDeleteBtn}>
                   <Ionicons name="trash-outline" size={18} color={colors.error} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => {
+                  Alert.alert('', '', [
+                    { text: 'Şikayət et', style: 'destructive', onPress: () => setShowReport(true) },
+                    { text: 'Ləğv et', style: 'cancel' },
+                  ]);
+                }} style={styles.postDeleteBtn}>
+                  <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -307,6 +318,7 @@ export default function PostDetailScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
+      <ReportModal visible={showReport} onClose={() => setShowReport(false)} contentType="post" contentId={post.id} />
       <Modal visible={showShare} transparent animationType="slide" onRequestClose={() => setShowShare(false)}>
         <Pressable style={styles.overlay} onPress={() => setShowShare(false)}>
           <Pressable style={[styles.sheet, { backgroundColor: colors.surface }]}>

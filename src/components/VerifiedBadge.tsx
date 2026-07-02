@@ -4,11 +4,18 @@ import { colors } from '../constants/theme';
 
 type Props = {
   size?: number;
+  type?: 'gray' | 'gold' | 'red';
 };
 
-export default function VerifiedBadge({ size = 16 }: Props) {
+const badgeColors = {
+  gray: '#8E8E93',
+  gold: '#FFD700',
+  red: '#FF3B30',
+};
+
+export default function VerifiedBadge({ size = 16, type = 'gray' }: Props) {
   return (
-    <View style={[styles.badge, { width: size, height: size, borderRadius: size / 2 }]}>
+    <View style={[styles.badge, { width: size, height: size, borderRadius: size / 2, backgroundColor: badgeColors[type] }]}>
       <Ionicons name="checkmark-outline" size={size * 0.65} color={colors.white} />
     </View>
   );
@@ -16,7 +23,6 @@ export default function VerifiedBadge({ size = 16 }: Props) {
 
 const styles = StyleSheet.create({
   badge: {
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -78,14 +78,10 @@ export default function ProfileScreen({ navigation, route }: any) {
     <LinearGradient colors={[colors.background, colors.surface]} style={styles.container}>
       {isOwnProfile && (
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          {myProfile?.role === 'admin' && (
-            <TouchableOpacity onPress={() => navigation.navigate('AdminPanel')}>
-              <Text style={[styles.adminText, { color: colors.warning }]}>Admin Panel</Text>
-            </TouchableOpacity>
-          )}
-            <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.settingsBtn, { borderColor: colors.border }]}>
-              <Ionicons name="settings-outline" size={20} color={colors.text} />
-            </TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.settingsBtn, { borderColor: colors.border }]}>
+            <Ionicons name="settings-outline" size={20} color={colors.text} />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -110,7 +106,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 
         <View style={styles.nameRow}>
           <Text style={[styles.fullName, { color: colors.text }]}>{displayProfile?.full_name || 'Adsız'}</Text>
-          {displayProfile?.verified && <VerifiedBadge size={18} />}
+          {displayProfile?.verified_type && displayProfile?.verified_type !== 'none' && <VerifiedBadge size={18} type={displayProfile?.verified_type} />}
         </View>
         <Text style={[styles.username, { color: colors.textMuted }]}>@{displayProfile?.username || 'username'}</Text>
         {displayProfile?.bio ? <Text style={[styles.bio, { color: colors.textSecondary }]}>{displayProfile.bio}</Text> : null}
