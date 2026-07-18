@@ -49,6 +49,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-localization",
       "expo-audio",
       "expo-image-picker",
       "expo-camera",
