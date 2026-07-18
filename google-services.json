@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "447012946640",
+    "project_id": "ticcer-social-media-2026",
+    "storage_bucket": "ticcer-social-media-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447012946640:android:90de37414b2d62334414d5",
+        "android_client_info": {
+          "package_name": "com.ticcer.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSk-6rI3Y7uWbLyP0HX81UnjUyjdZxx64"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

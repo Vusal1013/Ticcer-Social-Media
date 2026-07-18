@@ -1,0 +1,132 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          username: string;
+          full_name: string;
+          avatar_url: string | null;
+          bio: string | null;
+          verified_type: string;
+          role: string;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          username: string;
+          full_name: string;
+          avatar_url?: string | null;
+          bio?: string | null;
+          verified_type?: string;
+          role?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          username?: string;
+          full_name?: string;
+          avatar_url?: string | null;
+          bio?: string | null;
+          verified_type?: string;
+          role?: string;
+          created_at?: string;
+        };
+      };
+      posts: {
+        Row: {
+          id: string;
+          user_id: string;
+          content: string;
+          image_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          content: string;
+          image_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          content?: string;
+          image_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      post_likes: {
+        Row: { id: string; user_id: string; post_id: string; created_at: string };
+        Insert: { id?: string; user_id: string; post_id: string; created_at?: string };
+        Update: { id?: string; user_id?: string; post_id?: string; created_at?: string };
+      };
+      post_comments: {
+        Row: { id: string; user_id: string; post_id: string; parent_id: string | null; content: string; created_at: string };
+        Insert: { id?: string; user_id: string; post_id: string; parent_id?: string | null; content: string; created_at?: string };
+        Update: { id?: string; user_id?: string; post_id?: string; parent_id?: string | null; content?: string; created_at?: string };
+      };
+      hashtags: {
+        Row: { id: string; tag: string; created_at: string };
+        Insert: { id?: string; tag: string; created_at?: string };
+        Update: { id?: string; tag?: string; created_at?: string };
+      };
+      post_hashtags: {
+        Row: { id: string; post_id: string; hashtag_id: string };
+        Insert: { id?: string; post_id: string; hashtag_id: string };
+        Update: { id?: string; post_id?: string; hashtag_id?: string };
+      };
+      mentions: {
+        Row: { id: string; post_id: string; user_id: string; created_at: string };
+        Insert: { id?: string; post_id: string; user_id: string; created_at?: string };
+        Update: { id?: string; post_id?: string; user_id?: string; created_at?: string };
+      };
+      calls: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          caller_id: string;
+          callee_id: string;
+          status: string;
+          call_type: string;
+          room_name: string;
+          started_at: string | null;
+          ended_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          caller_id: string;
+          callee_id: string;
+          status?: string;
+          call_type: string;
+          room_name: string;
+          started_at?: string | null;
+          ended_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          caller_id?: string;
+          callee_id?: string;
+          status?: string;
+          call_type?: string;
+          room_name?: string;
+          started_at?: string | null;
+          ended_at?: string | null;
+          created_at?: string;
+        };
+      };
+    };
+    Views: {};
+    Functions: {};
+    Enums: {};
+  };
+};

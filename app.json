@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "Ticcer",
+    "slug": "ticcer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#0F0F23"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ticcer.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ticcer foto ve video cekmek ucun kameraya ehtiyac duyur",
+        "NSPhotoLibraryUsageDescription": "Ticcer sekil yuklemek ucun galeriyaya ehtiyac duyur"
+      },
+      "bitcode": false
+    },
+    "android": {
+      "package": "com.ticcer.app",
+      "googleServicesFile": "./google-services.json",
+      "notification": {
+        "color": "#0F0F23"
+      },
+      "adaptiveIcon": {
+        "backgroundColor": "#0F0F23",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.INTERNET",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-audio",
+      "expo-image-picker",
+      "expo-camera",
+      "expo-notifications",
+      "expo-video",
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "googleServicesFile": "./google-services.json",
+            "minSdkVersion": 24
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "01fe10e8-6183-4ecc-a01b-0340d33db7b4"
+      }
+    },
+    "owner": "fizz10s-organization"
+  }
+}
