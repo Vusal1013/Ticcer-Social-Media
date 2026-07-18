@@ -2,7 +2,7 @@
 
 React Native (Expo SDK 56) + TypeScript + Supabase ilə qurulmuş müasir sosial media platforması.
 
-## ✨ Features
+## ✨ Xüsusiyyətlər
 
 - Post paylaşma (şəkil + mətn)
 - Reels (qısa video, TikTok stil)
